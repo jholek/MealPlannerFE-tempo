@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import MealQueue from "./MealQueue";
+import RecipeBrowser from "./recipes/RecipeBrowser";
 import WeeklyCalendarGrid from "./WeeklyCalendarGrid";
 import IngredientsSidebar from "./IngredientsSidebar";
 
@@ -46,7 +46,7 @@ const Home = () => {
       </div>
 
       <div className="flex gap-6 justify-center items-start">
-        <MealQueue onDragStart={handleDragStart} />
+        <RecipeBrowser onDragStart={handleDragStart} />
         <WeeklyCalendarGrid meals={plannedMeals} onMealDrop={handleMealDrop} />
         <IngredientsSidebar />
       </div>
