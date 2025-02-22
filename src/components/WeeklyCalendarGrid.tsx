@@ -11,11 +11,15 @@ interface WeeklyCalendarGridProps {
     };
   };
   onMealDrop?: (day: string, mealTime: string, meal: any) => void;
+  preferences?: {
+    mealTypes: string[];
+  };
 }
 
 const WeeklyCalendarGrid = ({
   meals = {},
   onMealDrop = () => {},
+  preferences = { mealTypes: ["breakfast", "lunch", "dinner"] },
 }: WeeklyCalendarGridProps) => {
   const days = [
     "Monday",
@@ -26,7 +30,9 @@ const WeeklyCalendarGrid = ({
     "Saturday",
     "Sunday",
   ];
-  const mealTimes = ["Breakfast", "Lunch", "Dinner"];
+  const mealTimes = preferences.mealTypes.map(
+    (type) => type.charAt(0).toUpperCase() + type.slice(1),
+  );
 
   const handleDrop =
     (day: string, mealTime: string) => (e: React.DragEvent) => {
