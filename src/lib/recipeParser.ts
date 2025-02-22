@@ -1,11 +1,4 @@
-import { Recipe } from "@/types";
-
-interface ParsedIngredient {
-  quantity: number;
-  unit: string;
-  item: string;
-  notes?: string;
-}
+import { ParsedIngredient } from "@/types";
 
 const INGREDIENT_PROMPT = `
 Analyze this recipe and format ONLY the ingredients as follows:
@@ -139,7 +132,7 @@ export async function parseIngredientsFromImage(
         Authorization: `Bearer ${import.meta.env.VITE_OPENAI_API_KEY}`,
       },
       body: JSON.stringify({
-        model: "gpt-4o",
+        model: "gpt-4-vision-preview",
         messages: [
           {
             role: "user",

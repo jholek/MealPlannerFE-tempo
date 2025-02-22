@@ -25,6 +25,7 @@ export interface Recipe {
   };
   tags: string[];
   image?: string;
+  url?: string;
   createdAt: string;
   updatedAt: string;
 }
