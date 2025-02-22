@@ -6,13 +6,13 @@ import ViewRecipeDialog from "./ViewRecipeDialog";
 
 interface RecipeCardProps {
   recipe: Recipe;
-  onUpdate: (recipe: Recipe) => void;
+  onUpdate?: (recipe: Recipe) => void;
   className?: string;
 }
 
 export default function RecipeCard({
   recipe,
-  onUpdate,
+  onUpdate = () => {},
   className = "",
 }: RecipeCardProps) {
   return (
@@ -34,14 +34,10 @@ export default function RecipeCard({
             />
           </div>
 
-          <div className="p-4">
-            <h3 className="font-semibold text-lg mb-2">{recipe.name}</h3>
+          <div className="p-4 space-y-3">
+            <h3 className="font-semibold text-lg">{recipe.name}</h3>
 
-            <p className="text-sm text-gray-600 mb-3 line-clamp-2">
-              {recipe.description}
-            </p>
-
-            <div className="flex items-center gap-4 mb-3">
+            <div className="flex items-center gap-4">
               <div className="flex items-center gap-1 text-sm text-gray-600">
                 <Users className="w-4 h-4" />
                 <span>{recipe.servings} servings</span>
@@ -52,7 +48,7 @@ export default function RecipeCard({
               </div>
             </div>
 
-            <div className="space-y-2">
+            {recipe.tags.length > 0 && (
               <div className="flex flex-wrap gap-2">
                 {recipe.tags.map((tag) => (
                   <Badge key={tag} variant="secondary">
@@ -60,18 +56,19 @@ export default function RecipeCard({
                   </Badge>
                 ))}
               </div>
-              {recipe.url && (
-                <a
-                  href={recipe.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm text-blue-600 hover:underline flex items-center gap-1"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  View Original Recipe
-                </a>
-              )}
-            </div>
+            )}
+
+            {recipe.url && (
+              <a
+                href={recipe.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-blue-600 hover:underline flex items-center gap-1"
+                onClick={(e) => e.stopPropagation()}
+              >
+                View Original Recipe
+              </a>
+            )}
           </div>
         </Card>
       }

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Recipe } from "@/types";
 import { EditableIngredientRow } from "./EditableIngredientRow";
+import { createRecipe } from "@/lib/supabase/recipes";
 import {
   Dialog,
   DialogContent,
@@ -47,6 +48,7 @@ interface ParsedIngredient {
 }
 
 export default function AddRecipeDialog({ onRecipeAdd }: AddRecipeDialogProps) {
+  const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [ingredientsText, setIngredientsText] = useState("");
   const [parsedIngredients, setParsedIngredients] =
@@ -120,7 +122,7 @@ export default function AddRecipeDialog({ onRecipeAdd }: AddRecipeDialogProps) {
     }
   };
 
-  const handleCreateRecipe = () => {
+  const handleCreateRecipe = async () => {
     if (!parsedIngredients || !recipeName) return;
 
     const newRecipe: Recipe = {
@@ -136,6 +138,7 @@ export default function AddRecipeDialog({ onRecipeAdd }: AddRecipeDialogProps) {
         amount: ing.quantity,
         unit: ing.unit,
         category: "Uncategorized",
+        notes: ing.notes,
       })),
       instructions: [],
       nutritionalInfo: {
@@ -149,15 +152,48 @@ export default function AddRecipeDialog({ onRecipeAdd }: AddRecipeDialogProps) {
       updatedAt: new Date().toISOString(),
     };
 
-    onRecipeAdd(newRecipe);
-    toast({
-      title: "Recipe created",
-      description: "The recipe has been added to your collection.",
-    });
+    try {
+      const savedRecipe = await createRecipe(newRecipe);
+      toast({
+        title: "Success",
+        description: "Recipe has been created",
+      });
+      setOpen(false);
+      // Update the list after dialog is closed
+      onRecipeAdd(savedRecipe);
+    } catch (error) {
+      console.error("Error creating recipe:", error);
+      toast({
+        title: "Error",
+        description: "Failed to create recipe. Please try again.",
+        variant: "destructive",
+      });
+      return;
+    }
   };
 
   return (
-    <Dialog>
+    <Dialog
+      open={open}
+      onOpenChange={(isOpen) => {
+        setOpen(isOpen);
+        if (!open) {
+          // Reset form state when dialog is closed
+          setIngredientsText("");
+          setParsedIngredients(undefined);
+          setRecipeName("");
+          setRecipeUrl("");
+          setServings(4);
+          setPrepTime(0);
+          setCookTime(0);
+          setProtein(0);
+          setCarbs(0);
+          setFat(0);
+          setCalories(0);
+          setShowIngredientInput(true);
+        }
+      }}
+    >
       <DialogTrigger asChild>
         <Button className="w-full">
           <PlusCircle className="w-4 h-4 mr-2" />

@@ -15,6 +15,7 @@ export interface Recipe {
     amount: number;
     unit: string;
     category: string;
+    notes?: string;
   }[];
   instructions: string[];
   nutritionalInfo: {

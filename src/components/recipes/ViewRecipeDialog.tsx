@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Recipe } from "@/types";
 import { EditableIngredientRow } from "./EditableIngredientRow";
+import { updateRecipe } from "@/lib/supabase/recipes";
 import {
   Dialog,
   DialogContent,
@@ -11,7 +12,8 @@ import {
 import { Button } from "../ui/button";
 import { Label } from "../ui/label";
 import { Input } from "../ui/input";
-import { PlusCircle, Pencil, Save } from "lucide-react";
+import { PlusCircle, Pencil, Save, Trash2 } from "lucide-react";
+import { deleteRecipe } from "@/lib/supabase/recipes";
 import { useToast } from "../ui/use-toast";
 
 interface ViewRecipeDialogProps {
@@ -25,20 +27,32 @@ export default function ViewRecipeDialog({
   onRecipeUpdate,
   trigger,
 }: ViewRecipeDialogProps) {
+  const [open, setOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [recipe, setRecipe] = useState<Recipe>(initialRecipe);
   const { toast } = useToast();
 
-  const handleSave = () => {
-    onRecipeUpdate({
-      ...recipe,
-      updatedAt: new Date().toISOString(),
-    });
-    setIsEditing(false);
-    toast({
-      title: "Recipe updated",
-      description: "Your changes have been saved.",
-    });
+  const handleSave = async () => {
+    try {
+      const updatedRecipe = await updateRecipe({
+        ...recipe,
+        updatedAt: new Date().toISOString(),
+      });
+      onRecipeUpdate(updatedRecipe);
+      toast({
+        title: "Success",
+        description: "Recipe has been updated",
+      });
+      setIsEditing(false);
+    } catch (error) {
+      console.error("Error updating recipe:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update recipe. Please try again.",
+        variant: "destructive",
+      });
+      return;
+    }
   };
 
   const updateIngredient = (
@@ -56,6 +70,7 @@ export default function ViewRecipeDialog({
       amount: updated.quantity,
       unit: updated.unit,
       category: "Uncategorized",
+      notes: updated.notes,
     };
     setRecipe({ ...recipe, ingredients: newIngredients });
   };
@@ -68,27 +83,67 @@ export default function ViewRecipeDialog({
   };
 
   return (
-    <Dialog>
+    <Dialog
+      open={open}
+      onOpenChange={(isOpen) => {
+        setOpen(isOpen);
+        if (!open) {
+          // Reset form state when dialog is closed
+          setIsEditing(false);
+          setRecipe(initialRecipe);
+        }
+      }}
+    >
       <DialogTrigger asChild>
         {trigger || <Button variant="ghost">View Recipe</Button>}
       </DialogTrigger>
       <DialogContent className="max-w-3xl w-screen h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader className="flex flex-row items-center justify-between">
           <DialogTitle>View Recipe</DialogTitle>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setIsEditing(!isEditing)}
-          >
-            {isEditing ? (
-              "Cancel Editing"
-            ) : (
-              <>
-                <Pencil className="w-4 h-4 mr-2" />
-                Edit Recipe
-              </>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsEditing(!isEditing)}
+            >
+              {isEditing ? (
+                "Cancel Editing"
+              ) : (
+                <>
+                  <Pencil className="w-4 h-4 mr-2" />
+                  Edit Recipe
+                </>
+              )}
+            </Button>
+            {!isEditing && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-red-600 hover:text-red-700"
+                onClick={async () => {
+                  try {
+                    await deleteRecipe(recipe.id);
+                    toast({
+                      title: "Recipe deleted",
+                      description:
+                        "The recipe has been removed from your collection.",
+                    });
+                    // Update the UI through the callback
+                    onRecipeUpdate(null);
+                  } catch (error) {
+                    console.error("Error deleting recipe:", error);
+                    toast({
+                      title: "Error",
+                      description: "Failed to delete recipe. Please try again.",
+                      variant: "destructive",
+                    });
+                  }
+                }}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
             )}
-          </Button>
+          </div>
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto px-1">
@@ -309,7 +364,7 @@ export default function ViewRecipeDialog({
                         quantity={ing.amount}
                         unit={ing.unit}
                         item={ing.name}
-                        notes=""
+                        notes={ing.notes || ""}
                         onUpdate={(updated) => updateIngredient(idx, updated)}
                         onDelete={() => deleteIngredient(idx)}
                       />

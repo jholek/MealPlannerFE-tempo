@@ -10,62 +10,31 @@ interface RecipeBrowserProps {
   onDragStart?: (e: React.DragEvent, recipe: Recipe) => void;
 }
 
-const DEFAULT_RECIPES: Recipe[] = [
-  {
-    id: "1",
-    name: "Spaghetti Bolognese",
-    description: "Classic Italian pasta dish with rich meat sauce",
-    servings: 4,
-    prepTime: 15,
-    cookTime: 45,
-    ingredients: [
-      { name: "Ground Beef", amount: 1, unit: "lb", category: "Meat" },
-      { name: "Spaghetti", amount: 1, unit: "lb", category: "Pasta" },
-      {
-        name: "Tomato Sauce",
-        amount: 24,
-        unit: "oz",
-        category: "Canned Goods",
-      },
-    ],
-    instructions: ["Brown meat", "Cook pasta", "Combine and simmer"],
-    nutritionalInfo: { calories: 650, protein: 35, carbs: 70, fat: 25 },
-    tags: ["Italian", "Pasta", "Dinner"],
-    image: "https://images.unsplash.com/photo-1598866594230-a7c12756260f",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "2",
-    name: "Chicken Caesar Salad",
-    description:
-      "Fresh romaine lettuce with grilled chicken and creamy dressing",
-    servings: 2,
-    prepTime: 20,
-    cookTime: 15,
-    ingredients: [
-      { name: "Chicken Breast", amount: 2, unit: "pieces", category: "Meat" },
-      { name: "Romaine Lettuce", amount: 1, unit: "head", category: "Produce" },
-      {
-        name: "Caesar Dressing",
-        amount: 4,
-        unit: "oz",
-        category: "Condiments",
-      },
-    ],
-    instructions: ["Grill chicken", "Chop lettuce", "Assemble salad"],
-    nutritionalInfo: { calories: 400, protein: 35, carbs: 10, fat: 28 },
-    tags: ["Salad", "Healthy", "Lunch"],
-    image: "https://images.unsplash.com/photo-1550304943-4f24f54ddde9",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-];
+import { fetchRecipes } from "@/lib/supabase/recipes";
+import { useEffect, useState } from "react";
+
+const DEFAULT_RECIPES: Recipe[] = [];
 
 export default function RecipeBrowser({
-  recipes = DEFAULT_RECIPES,
   onDragStart = () => {},
 }: RecipeBrowserProps) {
+  const [recipes, setRecipes] = useState<Recipe[]>(DEFAULT_RECIPES);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const loadRecipes = async () => {
+    try {
+      const data = await fetchRecipes();
+      setRecipes(data);
+    } catch (error) {
+      console.error("Error loading recipes:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadRecipes();
+  }, []);
   return (
     <div className="w-[300px] h-full bg-gray-50 p-4 border-r">
       <div className="mb-4 space-y-4">
@@ -76,8 +45,8 @@ export default function RecipeBrowser({
         </div>
         <AddRecipeDialog
           onRecipeAdd={(recipe) => {
-            // Add the new recipe to the list
-            recipes = [recipe, ...recipes];
+            // Always refresh the list to ensure we have the latest data
+            loadRecipes();
           }}
         />
       </div>
@@ -93,6 +62,12 @@ export default function RecipeBrowser({
               <RecipeCard
                 recipe={recipe}
                 className="hover:shadow-md transition-shadow"
+                onUpdate={(updatedRecipe) => {
+                  if (!updatedRecipe) {
+                    // Recipe was deleted, refresh the list
+                    loadRecipes();
+                  }
+                }}
               />
             </div>
           ))}
