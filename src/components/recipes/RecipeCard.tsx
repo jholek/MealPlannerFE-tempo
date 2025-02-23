@@ -1,77 +1,64 @@
 import { Recipe } from "@/types";
 import { Card } from "../ui/card";
 import { Badge } from "../ui/badge";
-import { Clock, Users } from "lucide-react";
+import { Clock, Users, Link2 } from "lucide-react";
 import ViewRecipeDialog from "./ViewRecipeDialog";
 
 interface RecipeCardProps {
   recipe: Recipe;
-  onUpdate?: (recipe: Recipe) => void;
   className?: string;
+  onUpdate?: (recipe: Recipe | null) => void;
 }
 
 export default function RecipeCard({
   recipe,
-  onUpdate = () => {},
   className = "",
+  onUpdate = () => {},
 }: RecipeCardProps) {
   return (
-    <ViewRecipeDialog
-      recipe={recipe}
-      onRecipeUpdate={onUpdate}
-      trigger={
-        <Card
-          className={`w-full bg-white hover:shadow-lg transition-shadow cursor-pointer ${className}`}
-        >
-          <div className="aspect-video w-full overflow-hidden rounded-t-lg">
-            <img
-              src={
-                recipe.image ||
-                "https://images.unsplash.com/photo-1546069901-ba9599a7e63c"
-              }
-              alt={recipe.name}
-              className="w-full h-full object-cover"
-            />
+    <Card
+      className={`overflow-hidden ${className} cursor-move hover:shadow-lg transition-all`}
+    >
+      <div className="p-4 relative">
+        {recipe.url && (
+          <a
+            href={recipe.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="absolute top-4 right-4 text-blue-500 hover:text-blue-700 transition-colors cursor-pointer p-2 rounded-full hover:bg-blue-50"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Link2 className="w-5 h-5" />
+          </a>
+        )}
+        <h3 className="font-medium mb-2 pr-8">{recipe.name}</h3>
+        <div className="flex items-center gap-4 mb-2">
+          <div className="flex items-center gap-1 text-sm text-gray-600">
+            <Users className="w-4 h-4" />
+            <span>{recipe.servings}</span>
           </div>
-
-          <div className="p-4 space-y-3">
-            <h3 className="font-semibold text-lg">{recipe.name}</h3>
-
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-1 text-sm text-gray-600">
-                <Users className="w-4 h-4" />
-                <span>{recipe.servings} servings</span>
-              </div>
-              <div className="flex items-center gap-1 text-sm text-gray-600">
-                <Clock className="w-4 h-4" />
-                <span>{recipe.prepTime + recipe.cookTime} mins</span>
-              </div>
-            </div>
-
-            {recipe.tags.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {recipe.tags.map((tag) => (
-                  <Badge key={tag} variant="secondary">
-                    {tag}
-                  </Badge>
-                ))}
-              </div>
-            )}
-
-            {recipe.url && (
-              <a
-                href={recipe.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm text-blue-600 hover:underline flex items-center gap-1"
-                onClick={(e) => e.stopPropagation()}
-              >
-                View Original Recipe
-              </a>
-            )}
+          <div className="flex items-center gap-1 text-sm text-gray-600">
+            <Clock className="w-4 h-4" />
+            <span>{recipe.prepTime + recipe.cookTime} mins</span>
           </div>
-        </Card>
-      }
-    />
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {recipe.tags.map((tag) => (
+            <Badge key={tag} variant="secondary" className="text-xs">
+              {tag}
+            </Badge>
+          ))}
+        </div>
+      </div>
+      <ViewRecipeDialog
+        recipe={recipe}
+        onRecipeUpdate={onUpdate}
+        trigger={
+          <div className="px-4 py-2 bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer text-sm text-center border-t">
+            View Recipe
+          </div>
+        }
+      />
+    </Card>
   );
 }
