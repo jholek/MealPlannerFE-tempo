@@ -15,6 +15,12 @@ interface Meal {
   name: string;
   servings: number;
   time: string;
+  ingredients: {
+    name: string;
+    amount: number;
+    unit: string;
+    category: string;
+  }[];
 }
 
 interface PlannedMeal {
@@ -24,6 +30,12 @@ interface PlannedMeal {
   originalServings: number;
   recipeId: string;
   isLeftover?: boolean;
+  ingredients: {
+    name: string;
+    amount: number;
+    unit: string;
+    category: string;
+  }[];
 }
 
 interface Leftover {
@@ -46,7 +58,11 @@ const Home = () => {
   const handleDragStart = (e: React.DragEvent, meal: Meal) => {
     e.dataTransfer.setData(
       "meal",
-      JSON.stringify({ ...meal, isLeftover: false }),
+      JSON.stringify({
+        ...meal,
+        isLeftover: false,
+        ingredients: meal.ingredients || [],
+      }),
     );
   };
 
@@ -59,11 +75,48 @@ const Home = () => {
         servings: leftover.servingsLeft,
         isLeftover: true,
         originalServings: leftover.originalServings,
+        ingredients: [], // Add empty ingredients array for leftovers
       }),
     );
   };
 
   const handleMealDrop = (day: string, mealTime: string, mealData: any) => {
+    const targetCellKey = `${day}-${mealTime}`;
+    const existingMeal = plannedMeals[targetCellKey];
+
+    // Handle existing meal in the target cell if there is one
+    if (existingMeal) {
+      if (existingMeal.isLeftover) {
+        // Add existing leftover back to leftovers section
+        setLeftovers((prev) => {
+          const existingLeftover = prev.find(
+            (l) => l.recipeId === existingMeal.recipeId,
+          );
+          if (existingLeftover) {
+            return prev.map((l) =>
+              l.recipeId === existingMeal.recipeId
+                ? { ...l, servingsLeft: l.servingsLeft + existingMeal.servings }
+                : l,
+            );
+          } else {
+            return [
+              ...prev,
+              {
+                recipeId: existingMeal.recipeId,
+                recipeName: existingMeal.name,
+                servingsLeft: existingMeal.servings,
+                originalServings: existingMeal.originalServings,
+              },
+            ];
+          }
+        });
+      } else {
+        // Show confirmation dialog for fresh meal
+        setRecipeToRemove(existingMeal);
+        return; // Don't proceed with the drop until confirmed
+      }
+    }
+
     // If this meal is coming from another cell, remove it from the original cell
     if (mealData.fromCell) {
       setPlannedMeals((prev) => {
@@ -72,9 +125,9 @@ const Home = () => {
         return newMeals;
       });
     }
+
     const preferences = getPreferences();
     const { householdSize } = preferences;
-    const cellKey = `${day}-${mealTime}`;
 
     // If it's a leftover being used
     if (mealData.isLeftover) {
@@ -96,7 +149,7 @@ const Home = () => {
       const availableServings = Math.min(mealData.servings, householdSize);
       setPlannedMeals((prev) => ({
         ...prev,
-        [cellKey]: {
+        [targetCellKey]: {
           name: mealData.name,
           servings: availableServings,
           requiredServings: householdSize,
@@ -117,12 +170,13 @@ const Home = () => {
     // Add to planned meals
     setPlannedMeals((prev) => ({
       ...prev,
-      [cellKey]: {
+      [targetCellKey]: {
         name: mealData.name,
         servings: servingsNeeded,
         time: mealTime,
         originalServings: servingsAvailable,
         recipeId: mealData.id,
+        ingredients: mealData.ingredients || [],
       },
     }));
 
@@ -238,8 +292,53 @@ const Home = () => {
             setDraggedMealKey(null);
           }}
           preferences={preferences}
+          onMealRemove={(cellKey) => {
+            const meal = plannedMeals[cellKey];
+            if (meal) {
+              if (meal.isLeftover) {
+                // Add back to leftovers
+                setLeftovers((prev) => {
+                  const existingLeftover = prev.find(
+                    (l) => l.recipeId === meal.recipeId,
+                  );
+                  if (existingLeftover) {
+                    return prev.map((l) =>
+                      l.recipeId === meal.recipeId
+                        ? { ...l, servingsLeft: l.servingsLeft + meal.servings }
+                        : l,
+                    );
+                  } else {
+                    return [
+                      ...prev,
+                      {
+                        recipeId: meal.recipeId,
+                        recipeName: meal.name,
+                        servingsLeft: meal.servings,
+                        originalServings: meal.originalServings,
+                      },
+                    ];
+                  }
+                });
+              } else {
+                setRecipeToRemove(meal);
+                return; // Don't remove the meal yet, wait for dialog confirmation
+              }
+              // Remove the meal from the grid
+              setPlannedMeals((prev) => {
+                const newMeals = { ...prev };
+                delete newMeals[cellKey];
+                return newMeals;
+              });
+            }
+          }}
         />
-        <IngredientsSidebar />
+        <IngredientsSidebar
+          ingredients={
+            Object.values(plannedMeals)
+              .filter((meal) => !meal.isLeftover) // Only include non-leftover meals
+              .flatMap((meal) => meal.ingredients) // Use original recipe quantities
+          }
+        />
       </div>
 
       <RemoveRecipeDialog

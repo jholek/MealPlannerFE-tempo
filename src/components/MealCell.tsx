@@ -1,6 +1,7 @@
 import React from "react";
 import { Card } from "./ui/card";
-import { PlusCircle, Utensils, UtensilsCrossed } from "lucide-react";
+import { PlusCircle, Utensils, UtensilsCrossed, X } from "lucide-react";
+import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import {
   Tooltip,
@@ -23,6 +24,7 @@ interface MealCellProps {
   onDragStart?: (e: React.DragEvent) => void;
   onDragEnd?: (e: React.DragEvent) => void;
   isEmpty?: boolean;
+  onRemove?: () => void;
 }
 
 const MealCell = ({
@@ -31,6 +33,7 @@ const MealCell = ({
   onDragStart = () => {},
   onDragEnd = () => {},
   isEmpty = true,
+  onRemove,
 }: MealCellProps) => {
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -90,13 +93,26 @@ const MealCell = ({
           </div>
 
           {/* Icon in top-right corner */}
-          <div className="absolute top-1 right-1">
+          <div className="absolute top-1 right-1 flex items-center gap-1">
             {isLeftover ? (
               <UtensilsCrossed
                 className={`w-4 h-4 ${isPartialServing ? "text-red-500" : "text-orange-500"}`}
               />
             ) : (
               <Utensils className="w-4 h-4 text-green-500" />
+            )}
+            {onRemove && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 p-0.5 hover:bg-red-100 hover:text-red-600"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRemove();
+                }}
+              >
+                <X className="h-4 w-4" />
+              </Button>
             )}
           </div>
 

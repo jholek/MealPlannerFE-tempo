@@ -8,16 +8,28 @@ interface RecipeCardProps {
   recipe: Recipe;
   className?: string;
   onUpdate?: (recipe: Recipe | null) => void;
+  onDragStart?: (e: React.DragEvent, recipe: any) => void;
 }
 
 export default function RecipeCard({
   recipe,
   className = "",
   onUpdate = () => {},
+  onDragStart = () => {},
 }: RecipeCardProps) {
   return (
     <Card
       className={`overflow-hidden ${className} cursor-move hover:shadow-lg transition-all`}
+      draggable
+      onDragStart={(e) =>
+        onDragStart(e, {
+          id: recipe.id,
+          name: recipe.name,
+          servings: recipe.servings,
+          time: "",
+          ingredients: recipe.ingredients,
+        })
+      }
     >
       <div className="p-4 relative">
         {recipe.url && (

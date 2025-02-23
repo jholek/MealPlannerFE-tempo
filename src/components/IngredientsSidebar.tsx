@@ -15,16 +15,7 @@ interface IngredientsSidebarProps {
   ingredients?: Ingredient[];
 }
 
-const IngredientsSidebar = ({
-  ingredients = [
-    { name: "Chicken Breast", amount: 2, unit: "lbs", category: "Meat" },
-    { name: "Rice", amount: 3, unit: "cups", category: "Grains" },
-    { name: "Broccoli", amount: 4, unit: "cups", category: "Vegetables" },
-    { name: "Olive Oil", amount: 0.25, unit: "cup", category: "Pantry" },
-    { name: "Salt", amount: 2, unit: "tsp", category: "Pantry" },
-    { name: "Black Pepper", amount: 1, unit: "tsp", category: "Pantry" },
-  ],
-}: IngredientsSidebarProps) => {
+const IngredientsSidebar = ({ ingredients = [] }: IngredientsSidebarProps) => {
   // Group ingredients by category
   const groupedIngredients = ingredients.reduce(
     (acc, ingredient) => {

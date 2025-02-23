@@ -25,6 +25,7 @@ interface WeeklyCalendarGridProps {
   onLeftoverDragStart?: (e: React.DragEvent, leftover: any) => void;
   onMealDragStart?: (e: React.DragEvent, meal: any, cellKey: string) => void;
   onMealDragEnd?: (e: React.DragEvent) => void;
+  onMealRemove?: (cellKey: string) => void;
   preferences?: {
     mealTypes: string[];
   };
@@ -37,6 +38,7 @@ const WeeklyCalendarGrid = ({
   onLeftoverDragStart = () => {},
   onMealDragStart = () => {},
   onMealDragEnd = () => {},
+  onMealRemove = () => {},
   preferences = { mealTypes: ["breakfast", "lunch", "dinner"] },
 }: WeeklyCalendarGridProps) => {
   const days = [
@@ -91,6 +93,7 @@ const WeeklyCalendarGrid = ({
                     onDrop={handleDrop(day, mealTime)}
                     onDragStart={(e) => onMealDragStart(e, meal, mealKey)}
                     onDragEnd={onMealDragEnd}
+                    onRemove={() => onMealRemove(mealKey)}
                   />
                 </div>
               );
