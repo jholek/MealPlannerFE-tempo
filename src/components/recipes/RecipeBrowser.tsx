@@ -36,7 +36,7 @@ export default function RecipeBrowser({
     loadRecipes();
   }, []);
   return (
-    <div className="w-[300px] h-full bg-gray-50 p-4 border-r">
+    <div className="w-full h-full bg-gray-50 p-4 border rounded-lg">
       <div className="mb-4 space-y-4">
         <h2 className="text-xl font-semibold">Recipes</h2>
         <div className="relative">
@@ -51,8 +51,8 @@ export default function RecipeBrowser({
         />
       </div>
 
-      <ScrollArea className="h-[calc(100vh-180px)]">
-        <div className="space-y-4">
+      <ScrollArea className="h-[400px] md:h-[500px]">
+        <div className="space-y-4 pr-2">
           {recipes.map((recipe) => (
             <div
               key={recipe.id}

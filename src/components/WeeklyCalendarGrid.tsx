@@ -62,15 +62,15 @@ const WeeklyCalendarGrid = ({
     };
 
   return (
-    <Card className="p-6 bg-white w-[812px] h-[922px] overflow-hidden flex flex-col">
+    <Card className="p-4 md:p-6 bg-white w-full h-auto min-h-[600px] overflow-hidden flex flex-col">
       {/* Calendar Grid */}
-      <div className="grid grid-cols-[100px_repeat(7,1fr)] gap-4 overflow-y-auto flex-1">
+      <div className="grid grid-cols-[80px_repeat(7,minmax(90px,1fr))] md:grid-cols-[100px_repeat(7,1fr)] gap-2 md:gap-4 overflow-x-auto overflow-y-auto flex-1">
         {/* Header row */}
         <div className="text-center font-medium text-purple-600 sticky top-0 bg-white z-10"></div>
         {days.map((day) => (
           <div
             key={day}
-            className="text-center font-medium text-gray-700 sticky top-0 bg-white z-10"
+            className="text-center font-medium text-gray-700 sticky top-0 bg-white z-10 text-xs md:text-sm"
           >
             {day}
           </div>
@@ -79,7 +79,7 @@ const WeeklyCalendarGrid = ({
         {/* Meal time rows */}
         {mealTimes.map((mealTime) => (
           <React.Fragment key={mealTime}>
-            <div className="text-center font-medium text-purple-600 flex items-center justify-center sticky left-0 bg-white">
+            <div className="text-center font-medium text-purple-600 flex items-center justify-center sticky left-0 bg-white text-xs md:text-sm">
               {mealTime}
             </div>
             {days.map((day) => {

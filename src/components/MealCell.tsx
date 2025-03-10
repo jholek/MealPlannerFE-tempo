@@ -45,7 +45,7 @@ const MealCell = ({
 
   return (
     <Card
-      className={`w-[116px] h-[120px] bg-white border relative
+      className={`w-full min-w-[90px] max-w-[116px] h-[100px] md:h-[120px] bg-white border relative
         ${
           isEmpty
             ? "border-2 border-dashed border-gray-300"

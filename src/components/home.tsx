@@ -198,7 +198,7 @@ const Home = () => {
   const [preferences, setPreferences] = useState(getPreferences());
 
   return (
-    <div className="min-h-screen bg-gray-100 p-8">
+    <div className="min-h-screen bg-gray-100 p-4 md:p-8">
       <PreferencesForm
         open={showPrefs}
         onOpenChange={setShowPrefs}
@@ -209,9 +209,9 @@ const Home = () => {
         }}
         initialPreferences={getPreferences()}
       />
-      <div className="mb-8">
+      <div className="mb-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold text-gray-900">
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
             Meal Planning Dashboard
           </h1>
           <Button
@@ -222,41 +222,90 @@ const Home = () => {
             <Settings className="h-4 w-4" />
           </Button>
         </div>
-        <p className="text-gray-600 mt-2">
+        <p className="text-gray-600 mt-2 text-sm md:text-base">
           Drag and drop meals to plan your week
         </p>
       </div>
 
-      <div className="flex gap-6 justify-center items-start">
-        <RecipeBrowser onDragStart={handleDragStart} />
-        <WeeklyCalendarGrid
-          meals={plannedMeals}
-          leftovers={leftovers}
-          onMealDrop={handleMealDrop}
-          onLeftoverDragStart={handleLeftoverDragStart}
-          onMealDragStart={(e, meal, cellKey) => {
-            setDraggedMealKey(cellKey);
-            e.dataTransfer.setData(
-              "meal",
-              JSON.stringify({ ...meal, fromCell: cellKey }),
-            );
-          }}
-          onMealDragEnd={(e) => {
-            if (
-              !e.dataTransfer.dropEffect ||
-              e.dataTransfer.dropEffect === "none"
-            ) {
-              // Meal was dropped outside valid drop zones
-              const meal = plannedMeals[draggedMealKey];
+      {/* Top row with recipes and calendar */}
+      <div className="flex flex-col md:flex-row gap-4 w-full mb-6">
+        <div className="w-full md:w-[300px] flex-shrink-0">
+          <RecipeBrowser onDragStart={handleDragStart} />
+        </div>
+        <div className="w-full overflow-x-auto">
+          <WeeklyCalendarGrid
+            meals={plannedMeals}
+            leftovers={leftovers}
+            onMealDrop={handleMealDrop}
+            onLeftoverDragStart={handleLeftoverDragStart}
+            onMealDragStart={(e, meal, cellKey) => {
+              setDraggedMealKey(cellKey);
+              e.dataTransfer.setData(
+                "meal",
+                JSON.stringify({ ...meal, fromCell: cellKey }),
+              );
+            }}
+            onMealDragEnd={(e) => {
+              if (
+                !e.dataTransfer.dropEffect ||
+                e.dataTransfer.dropEffect === "none"
+              ) {
+                // Meal was dropped outside valid drop zones
+                const meal = plannedMeals[draggedMealKey];
+                if (meal) {
+                  if (meal.isLeftover) {
+                    // Add back to leftovers and remove from cell
+                    setLeftovers((prev) => {
+                      const existingLeftover = prev.find(
+                        (l) => l.recipeId === meal.recipeId,
+                      );
+                      if (existingLeftover) {
+                        // Add servings to existing leftover card
+                        return prev.map((l) =>
+                          l.recipeId === meal.recipeId
+                            ? {
+                                ...l,
+                                servingsLeft: l.servingsLeft + meal.servings,
+                              }
+                            : l,
+                        );
+                      } else {
+                        // Create new leftover card
+                        return [
+                          ...prev,
+                          {
+                            recipeId: meal.recipeId,
+                            recipeName: meal.name,
+                            servingsLeft: meal.servings,
+                            originalServings: meal.originalServings,
+                          },
+                        ];
+                      }
+                    });
+                    setPlannedMeals((prev) => {
+                      const newMeals = { ...prev };
+                      delete newMeals[draggedMealKey];
+                      return newMeals;
+                    });
+                  } else {
+                    // Show confirmation dialog before removing
+                    setRecipeToRemove(meal);
+                  }
+                }
+              }
+              setDraggedMealKey(null);
+            }}
+            preferences={preferences}
+            onMealRemove={(cellKey) => {
+              const meal = plannedMeals[cellKey];
               if (meal) {
                 if (meal.isLeftover) {
-                  // Add back to leftovers and remove from cell
+                  // Add back to leftovers
                   setLeftovers((prev) => {
                     const existingLeftover = prev.find(
                       (l) => l.recipeId === meal.recipeId,
                     );
                     if (existingLeftover) {
-                      // Add servings to existing leftover card
                       return prev.map((l) =>
                         l.recipeId === meal.recipeId
                           ? {
@@ -266,7 +315,6 @@ const Home = () => {
                           : l,
                       );
                     } else {
-                      // Create new leftover card
                       return [
                         ...prev,
                         {
@@ -278,60 +326,24 @@ const Home = () => {
                       ];
                     }
                   });
-                  setPlannedMeals((prev) => {
-                    const newMeals = { ...prev };
-                    delete newMeals[draggedMealKey];
-                    return newMeals;
-                  });
                 } else {
-                  // Show confirmation dialog before removing
                   setRecipeToRemove(meal);
+                  return; // Don't remove the meal yet, wait for dialog confirmation
                 }
-              }
-            }
-            setDraggedMealKey(null);
-          }}
-          preferences={preferences}
-          onMealRemove={(cellKey) => {
-            const meal = plannedMeals[cellKey];
-            if (meal) {
-              if (meal.isLeftover) {
-                // Add back to leftovers
-                setLeftovers((prev) => {
-                  const existingLeftover = prev.find(
-                    (l) => l.recipeId === meal.recipeId,
-                  );
-                  if (existingLeftover) {
-                    return prev.map((l) =>
-                      l.recipeId === meal.recipeId
-                        ? { ...l, servingsLeft: l.servingsLeft + meal.servings }
-                        : l,
-                    );
-                  } else {
-                    return [
-                      ...prev,
-                      {
-                        recipeId: meal.recipeId,
-                        recipeName: meal.name,
-                        servingsLeft: meal.servings,
-                        originalServings: meal.originalServings,
-                      },
-                    ];
-                  }
+                // Remove the meal from the grid
+                setPlannedMeals((prev) => {
+                  const newMeals = { ...prev };
+                  delete newMeals[cellKey];
+                  return newMeals;
                 });
-              } else {
-                setRecipeToRemove(meal);
-                return; // Don't remove the meal yet, wait for dialog confirmation
               }
-              // Remove the meal from the grid
-              setPlannedMeals((prev) => {
-                const newMeals = { ...prev };
-                delete newMeals[cellKey];
-                return newMeals;
-              });
-            }
-          }}
-        />
+            }}
+          />
+        </div>
+      </div>
+
+      {/* Bottom row with ingredients sidebar */}
+      <div className="w-full">
         <IngredientsSidebar
           ingredients={
             Object.values(plannedMeals)
