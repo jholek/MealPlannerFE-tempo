@@ -117,7 +117,6 @@ const MealCell = ({
           </div>
 
           <h4 className="font-medium text-sm mb-1 mt-2">{meal?.name}</h4>
-          <p className="text-xs text-gray-600 mb-1">{meal?.time}</p>
           <Badge
             variant="secondary"
             className={`${
