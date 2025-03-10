@@ -18,6 +18,7 @@ interface Ingredient {
   amount: number;
   unit: string;
   category: string;
+  notes?: string;
 }
 
 interface IngredientsSidebarProps {
@@ -92,7 +93,14 @@ const IngredientsSidebar = ({ ingredients = [] }: IngredientsSidebarProps) => {
                     key={ingredient.name}
                     className="flex justify-between py-0.5"
                   >
-                    <span className="truncate mr-2">{ingredient.name}</span>
+                    <span className="truncate mr-2">
+                      {ingredient.name}
+                      {ingredient.notes && (
+                        <span className="text-xs text-gray-500 italic ml-1">
+                          ({ingredient.notes})
+                        </span>
+                      )}
+                    </span>
                     <span className="whitespace-nowrap">
                       {ingredient.amount} {ingredient.unit}
                     </span>
@@ -161,6 +169,11 @@ const IngredientsSidebar = ({ ingredients = [] }: IngredientsSidebarProps) => {
                           <div className="flex justify-between items-center">
                             <span className="font-medium">
                               {ingredient.name}
+                              {ingredient.notes && (
+                                <span className="font-normal text-sm text-gray-500 ml-2">
+                                  ({ingredient.notes})
+                                </span>
+                              )}
                             </span>
                             <span className="text-gray-600">
                               {ingredient.amount} {ingredient.unit}
