@@ -13,6 +13,7 @@ const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage"));
 const UpdatePasswordPage = lazy(() => import("./pages/UpdatePasswordPage"));
 const FirstTimeSetup = lazy(() => import("./components/auth/FirstTimeSetup"));
 const SharedListPage = lazy(() => import("./pages/SharedListPage"));
+const DebugPage = lazy(() => import("./pages/DebugPage"));
 
 function App() {
   return (
@@ -32,6 +33,7 @@ function App() {
             <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="/update-password" element={<UpdatePasswordPage />} />
             <Route path="/shared-list/:shareId" element={<SharedListPage />} />
+            <Route path="/debug" element={<DebugPage />} />
 
             {/* First-time setup route */}
             <Route

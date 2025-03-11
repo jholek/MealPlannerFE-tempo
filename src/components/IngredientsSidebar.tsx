@@ -29,7 +29,6 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "./ui/collapsible";
-import ShareListDialog from "./ShareListDialog";
 
 interface Ingredient {
   name: string;
@@ -42,9 +41,15 @@ interface Ingredient {
 
 interface IngredientsSidebarProps {
   ingredients?: Ingredient[];
+  currentPlanId?: string;
+  onShareList?: () => void;
 }
 
-const IngredientsSidebar = ({ ingredients = [] }: IngredientsSidebarProps) => {
+const IngredientsSidebar = ({
+  ingredients = [],
+  currentPlanId,
+  onShareList = () => {},
+}: IngredientsSidebarProps) => {
   const [open, setOpen] = useState(false);
   const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({});
   const [completedOpen, setCompletedOpen] = useState(false);
@@ -175,16 +180,17 @@ const IngredientsSidebar = ({ ingredients = [] }: IngredientsSidebarProps) => {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <ShareListDialog
-              ingredients={ingredientsWithIds}
-              checkedItems={checkedItems}
-              trigger={
-                <Button variant="outline" size="sm" className="h-8 text-sm">
-                  <Share className="w-3 h-3 mr-1" />
-                  Share
-                </Button>
-              }
-            />
+            {currentPlanId && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 text-sm"
+                onClick={onShareList}
+              >
+                <Share className="w-3 h-3 mr-1" />
+                Share
+              </Button>
+            )}
             <Button
               onClick={() => setOpen(true)}
               className="bg-purple-600 hover:bg-purple-700 h-8 text-sm"

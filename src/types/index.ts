@@ -60,6 +60,7 @@ export interface MealPlan {
     servingsLeft: number;
     originalServings: number;
   }[];
+  sharedListId?: string;
   createdAt: string;
   updatedAt: string;
 }

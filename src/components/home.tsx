@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import RemoveRecipeDialog from "./recipes/RemoveRecipeDialog";
 import RecipeBrowser from "./recipes/RecipeBrowser";
 import WeeklyCalendarGrid from "./WeeklyCalendarGrid";
@@ -69,6 +69,7 @@ const Home = () => {
     null,
   );
   const [currentPlanId, setCurrentPlanId] = useState<string>();
+  // No longer tracking share ID at the meal plan level
   const [loadingPlan, setLoadingPlan] = useState(true);
 
   const handleDragStart = (e: React.DragEvent, meal: Meal) => {
@@ -270,6 +271,7 @@ const Home = () => {
         const currentPlan = await getCurrentMealPlan();
         if (currentPlan) {
           setCurrentPlanId(currentPlan.id);
+          // No longer setting share ID from meal plan
           setPlannedMeals(currentPlan.meals || {});
           setLeftovers(currentPlan.leftovers || []);
         }
@@ -286,6 +288,7 @@ const Home = () => {
   }, [user]);
 
   const handlePlanSelect = (plan: MealPlan) => {
+    console.log("Selected plan:", plan);
     setCurrentPlanId(plan.id);
     setPlannedMeals(plan.meals || {});
     setLeftovers(plan.leftovers || []);
@@ -362,6 +365,16 @@ const Home = () => {
     }
   };
 
+  // Create a ref to access the WeeklyPlanSelector component's methods
+  const weeklyPlanSelectorRef = useRef(null);
+
+  const handleShareShoppingList = () => {
+    // Call the handleShareShoppingList method directly through the ref
+    if (weeklyPlanSelectorRef.current) {
+      weeklyPlanSelectorRef.current.handleShareShoppingList();
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-100 p-4 md:p-8">
       <PreferencesForm
@@ -386,6 +399,7 @@ const Home = () => {
           </div>
           <div className="flex items-center gap-2">
             <WeeklyPlanSelector
+              ref={weeklyPlanSelectorRef}
               onPlanSelect={handlePlanSelect}
               onSavePlan={handleSavePlan}
               currentPlanId={currentPlanId}
@@ -558,6 +572,8 @@ const Home = () => {
               .filter((meal) => !meal.isLeftover) // Only include non-leftover meals
               .flatMap((meal) => meal.ingredients) // Use original recipe quantities
           }
+          currentPlanId={currentPlanId}
+          onShareList={handleShareShoppingList}
         />
       </div>
 
