@@ -5,13 +5,23 @@ import { Separator } from "./ui/separator";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Checkbox } from "./ui/checkbox";
-import { ListFilter, ShoppingCart, ChevronDown, ChevronUp } from "lucide-react";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
+import {
+  ListFilter,
+  ShoppingCart,
+  ChevronDown,
+  ChevronUp,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogFooter,
 } from "./ui/dialog";
 import {
   Collapsible,
@@ -36,9 +46,18 @@ const IngredientsSidebar = ({ ingredients = [] }: IngredientsSidebarProps) => {
   const [open, setOpen] = useState(false);
   const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({});
   const [completedOpen, setCompletedOpen] = useState(false);
+  const [manualIngredients, setManualIngredients] = useState<Ingredient[]>([]);
+
+  const [newIngredient, setNewIngredient] = useState<{
+    name: string;
+    amount: string;
+    unit: string;
+    notes: string;
+  }>({ name: "", amount: "", unit: "", notes: "" });
 
   // Add unique IDs to ingredients if they don't have them
-  const ingredientsWithIds = ingredients.map((ing, index) => ({
+  const allIngredients = [...ingredients, ...manualIngredients];
+  const ingredientsWithIds = allIngredients.map((ing, index) => ({
     ...ing,
     id:
       ing.id ||
@@ -112,6 +131,32 @@ const IngredientsSidebar = ({ ingredients = [] }: IngredientsSidebarProps) => {
     setCheckedItems({});
   };
 
+  const handleAddIngredient = () => {
+    if (!newIngredient.name.trim()) return;
+
+    const manualItem: Ingredient = {
+      name: newIngredient.name.trim(),
+      amount: parseFloat(newIngredient.amount) || 1,
+      unit: newIngredient.unit.trim(),
+      category: "Manual",
+      notes: newIngredient.notes.trim() || undefined,
+      id: `manual-${Date.now()}`,
+    };
+
+    setManualIngredients((prev) => [...prev, manualItem]);
+    setNewIngredient({ name: "", amount: "", unit: "", notes: "" });
+  };
+
+  const handleRemoveManualIngredient = (id: string) => {
+    setManualIngredients((prev) => prev.filter((item) => item.id !== id));
+    // Also remove from checked items if it was checked
+    if (checkedItems[id]) {
+      const newCheckedItems = { ...checkedItems };
+      delete newCheckedItems[id];
+      setCheckedItems(newCheckedItems);
+    }
+  };
+
   return (
     <>
       <Card className="w-full h-auto bg-white p-3 flex flex-col">
@@ -123,7 +168,7 @@ const IngredientsSidebar = ({ ingredients = [] }: IngredientsSidebarProps) => {
                 Ingredients needed for your meal plan
               </p>
               <Badge variant="outline" className="ml-1 text-xs py-0 px-2">
-                Total: {ingredients.length} items
+                Total: {allIngredients.length} items
               </Badge>
             </div>
           </div>
@@ -200,8 +245,8 @@ const IngredientsSidebar = ({ ingredients = [] }: IngredientsSidebarProps) => {
 
       {/* Full ingredients modal */}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col p-4">
-          <DialogHeader className="p-0 mb-2">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-auto p-6 pt-12">
+          <DialogHeader className="p-0 mb-4">
             <div className="flex items-center justify-between">
               <DialogTitle>Shopping List</DialogTitle>
               <div className="flex items-center gap-2">
@@ -215,11 +260,158 @@ const IngredientsSidebar = ({ ingredients = [] }: IngredientsSidebarProps) => {
             </div>
           </DialogHeader>
 
-          <ScrollArea className="flex-1 pr-2 max-h-[calc(90vh-80px)]">
+          <div className="pr-2">
             <div className="space-y-6">
+              {/* Quick add manual ingredient */}
+              <div className="mb-6">
+                <div className="flex items-center gap-2 mb-2">
+                  <Badge
+                    variant="secondary"
+                    className="bg-blue-100 text-blue-700"
+                  >
+                    Add Manual Item
+                  </Badge>
+                </div>
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    handleAddIngredient();
+                  }}
+                  className="border rounded-md p-3"
+                >
+                  <div className="grid grid-cols-12 gap-2">
+                    <Input
+                      placeholder="Item name"
+                      className="col-span-4"
+                      value={newIngredient.name}
+                      onChange={(e) =>
+                        setNewIngredient({
+                          ...newIngredient,
+                          name: e.target.value,
+                        })
+                      }
+                    />
+                    <Input
+                      placeholder="Amount"
+                      type="number"
+                      className="col-span-2"
+                      value={newIngredient.amount}
+                      onChange={(e) =>
+                        setNewIngredient({
+                          ...newIngredient,
+                          amount: e.target.value,
+                        })
+                      }
+                    />
+                    <Input
+                      placeholder="Unit"
+                      className="col-span-2"
+                      value={newIngredient.unit}
+                      onChange={(e) =>
+                        setNewIngredient({
+                          ...newIngredient,
+                          unit: e.target.value,
+                        })
+                      }
+                    />
+                    <Input
+                      placeholder="Notes (optional)"
+                      className="col-span-3"
+                      value={newIngredient.notes}
+                      onChange={(e) =>
+                        setNewIngredient({
+                          ...newIngredient,
+                          notes: e.target.value,
+                        })
+                      }
+                    />
+                    <Button
+                      className="col-span-1"
+                      size="sm"
+                      type="submit"
+                      disabled={!newIngredient.name.trim()}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </form>
+              </div>
+
               {/* Active shopping list items */}
-              {Object.entries(groupedIngredients).map(
-                ([category, items], index) => (
+              {/* Show Manual category first */}
+              {groupedIngredients["Manual"] && (
+                <div key="Manual">
+                  <div className="flex items-center gap-1 mb-2">
+                    <Badge
+                      variant="secondary"
+                      className="bg-blue-100 text-blue-700"
+                    >
+                      Manual
+                    </Badge>
+                    <span className="text-sm text-gray-500">
+                      {groupedIngredients["Manual"].length} items
+                    </span>
+                  </div>
+                  <div className="border rounded-md mb-6">
+                    {groupedIngredients["Manual"].map((ingredient) => (
+                      <div
+                        key={ingredient.id}
+                        className="py-2 px-3 border-b last:border-b-0"
+                      >
+                        <div
+                          className="flex justify-between items-center cursor-pointer"
+                          onClick={() => handleCheckboxChange(ingredient.id)}
+                        >
+                          <div className="flex items-center gap-2">
+                            <Checkbox
+                              id={ingredient.id}
+                              checked={checkedItems[ingredient.id]}
+                              onCheckedChange={() =>
+                                handleCheckboxChange(ingredient.id)
+                              }
+                            />
+                            <span className="font-medium">
+                              {ingredient.name}
+                              {ingredient.notes && (
+                                <span className="font-normal text-sm text-gray-500 ml-2">
+                                  ({ingredient.notes})
+                                </span>
+                              )}
+                              <Badge
+                                variant="outline"
+                                className="ml-2 text-xs py-0 px-1 bg-blue-50 text-blue-700"
+                              >
+                                Manual
+                              </Badge>
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-gray-600">
+                              {ingredient.amount} {ingredient.unit}
+                            </span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRemoveManualIngredient(ingredient.id);
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Other categories */}
+              {Object.entries(groupedIngredients)
+                .filter(([category]) => category !== "Manual")
+                .map(([category, items], index) => (
                   <div key={category}>
                     <div className="flex items-center gap-1 mb-2">
                       <Badge
@@ -258,18 +450,40 @@ const IngredientsSidebar = ({ ingredients = [] }: IngredientsSidebarProps) => {
                                     ({ingredient.notes})
                                   </span>
                                 )}
+                                {ingredient.category === "Manual" && (
+                                  <Badge
+                                    variant="outline"
+                                    className="ml-2 text-xs py-0 px-1 bg-blue-50 text-blue-700"
+                                  >
+                                    Manual
+                                  </Badge>
+                                )}
                               </span>
                             </div>
-                            <span className="text-gray-600">
-                              {ingredient.amount} {ingredient.unit}
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-gray-600">
+                                {ingredient.amount} {ingredient.unit}
+                              </span>
+                              {ingredient.category === "Manual" && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-6 w-6 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleRemoveManualIngredient(ingredient.id);
+                                  }}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </div>
                           </div>
                         </div>
                       ))}
                     </div>
                   </div>
-                ),
-              )}
+                ))}
 
               {/* Completed items section */}
               {completedItems.length > 0 && (
@@ -351,11 +565,36 @@ const IngredientsSidebar = ({ ingredients = [] }: IngredientsSidebarProps) => {
                                           ({ingredient.notes})
                                         </span>
                                       )}
+                                      {ingredient.category === "Manual" && (
+                                        <Badge
+                                          variant="outline"
+                                          className="ml-2 text-xs py-0 px-1 bg-blue-50 text-blue-700 no-underline"
+                                        >
+                                          Manual
+                                        </Badge>
+                                      )}
                                     </span>
                                   </div>
-                                  <span className="text-gray-400 line-through">
-                                    {ingredient.amount} {ingredient.unit}
-                                  </span>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-gray-400 line-through">
+                                      {ingredient.amount} {ingredient.unit}
+                                    </span>
+                                    {ingredient.category === "Manual" && (
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-6 w-6 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleRemoveManualIngredient(
+                                            ingredient.id,
+                                          );
+                                        }}
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
                             ))}
@@ -367,7 +606,7 @@ const IngredientsSidebar = ({ ingredients = [] }: IngredientsSidebarProps) => {
                 </Collapsible>
               )}
             </div>
-          </ScrollArea>
+          </div>
         </DialogContent>
       </Dialog>
     </>

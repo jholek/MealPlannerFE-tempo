@@ -6,7 +6,7 @@ import IngredientsSidebar from "./IngredientsSidebar";
 import PreferencesForm from "./setup/PreferencesForm";
 import LeftoverCard from "./LeftoverCard";
 import WeeklyPlanSelector from "./WeeklyPlanSelector";
-import { Settings } from "lucide-react";
+import { Settings, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "./ui/button";
 import {
   getPreferences,
@@ -222,6 +222,38 @@ const Home = () => {
   const { user } = useAuth();
 
   useEffect(() => {
+    // Setup drawer collapsed indicator visibility
+    const setupDrawerIndicator = () => {
+      const drawer = document.getElementById("recipe-drawer");
+      const indicator = document.getElementById("collapsed-indicator");
+
+      if (drawer && indicator) {
+        const observer = new MutationObserver((mutations) => {
+          mutations.forEach((mutation) => {
+            if (mutation.attributeName === "class") {
+              if (drawer.classList.contains("md:w-[50px]")) {
+                indicator.classList.remove("md:hidden");
+              } else {
+                indicator.classList.add("md:hidden");
+              }
+            }
+          });
+        });
+
+        observer.observe(drawer, { attributes: true });
+
+        // Initial state
+        if (drawer.classList.contains("md:w-[50px]")) {
+          indicator.classList.remove("md:hidden");
+        } else {
+          indicator.classList.add("md:hidden");
+        }
+      }
+    };
+
+    // Call after component is mounted
+    setTimeout(setupDrawerIndicator, 0);
+
     // Load preferences and current meal plan when component mounts
     const loadData = async () => {
       try {
@@ -372,10 +404,73 @@ const Home = () => {
         </div>
       </div>
 
-      {/* Top row with recipes and calendar */}
-      <div className="flex flex-col md:flex-row gap-4 w-full mb-6">
-        <div className="w-full md:w-[300px] flex-shrink-0">
-          <RecipeBrowser onDragStart={handleDragStart} />
+      {/* Top row with recipes drawer and calendar */}
+      <div className="flex flex-col md:flex-row gap-4 w-full mb-6 relative">
+        <div
+          className="w-full md:w-[300px] flex-shrink-0 transition-all duration-300 ease-in-out relative"
+          id="recipe-drawer"
+        >
+          <div
+            className="absolute -right-3 top-1/2 transform -translate-y-1/2 z-[9999]"
+            style={{ pointerEvents: "auto" }}
+          >
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-6 w-6 rounded-full bg-white shadow-md border-gray-200 relative z-[9999]"
+              onClick={() => {
+                const drawer = document.getElementById("recipe-drawer");
+                const toggleButton = document.getElementById(
+                  "drawer-toggle-button",
+                );
+                if (drawer.classList.contains("md:w-[300px]")) {
+                  drawer.classList.remove("md:w-[300px]");
+                  drawer.classList.add("md:w-[50px]");
+                  toggleButton.innerHTML =
+                    '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><polyline points="9 18 15 12 9 6"></polyline></svg>';
+                } else {
+                  drawer.classList.remove("md:w-[50px]");
+                  drawer.classList.add("md:w-[300px]");
+                  toggleButton.innerHTML =
+                    '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><polyline points="15 18 9 12 15 6"></polyline></svg>';
+                }
+              }}
+              id="drawer-toggle-button"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+          </div>
+          <div className="relative h-full overflow-hidden">
+            <div
+              className="md:hidden md:absolute md:inset-0 md:flex md:flex-col md:items-center md:justify-start md:pt-4 md:bg-white md:z-30 transition-opacity duration-300 ease-in-out"
+              id="collapsed-indicator"
+            >
+              <div className="hidden md:flex md:flex-col md:items-center md:gap-2 md:mt-2">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  className="text-purple-600"
+                >
+                  <path d="M8 3v3a2 2 0 0 1-2 2H3"></path>
+                  <path d="M21 8h-3a2 2 0 0 1-2-2V3"></path>
+                  <path d="M3 16h3a2 2 0 0 1 2 2v3"></path>
+                  <path d="M16 21v-3a2 2 0 0 1 2-2h3"></path>
+                  <rect width="7" height="7" x="8.5" y="8.5" rx="2"></rect>
+                </svg>
+                <span className="text-xs font-medium text-purple-600 rotate-90 whitespace-nowrap mt-2">
+                  Recipes
+                </span>
+              </div>
+            </div>
+            <RecipeBrowser onDragStart={handleDragStart} />
+          </div>
         </div>
         <div className="w-full overflow-x-auto">
           <WeeklyCalendarGrid
