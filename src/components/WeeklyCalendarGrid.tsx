@@ -22,7 +22,11 @@ interface WeeklyCalendarGridProps {
     originalServings: number;
   }[];
   onMealDrop?: (day: string, mealTime: string, meal: any) => void;
-  onLeftoverDragStart?: (e: React.DragEvent, leftover: any) => void;
+  onLeftoverDragStart?: (
+    e: React.DragEvent,
+    leftover: any,
+    index: number,
+  ) => void;
   onMealDragStart?: (e: React.DragEvent, meal: any, cellKey: string) => void;
   onMealDragEnd?: (e: React.DragEvent) => void;
   onMealRemove?: (cellKey: string) => void;
@@ -122,12 +126,12 @@ const WeeklyCalendarGrid = ({
         {leftovers.length > 0 ? (
           <ScrollArea className="h-auto max-h-[200px]">
             <div className="grid grid-cols-4 gap-2 pb-2">
-              {leftovers.map((leftover) => (
+              {leftovers.map((leftover, index) => (
                 <LeftoverCard
-                  key={`${leftover.recipeId}-${leftover.servingsLeft}`}
+                  key={`${leftover.recipeId}-${leftover.servingsLeft}-${index}`}
                   recipeName={leftover.recipeName}
                   servingsLeft={leftover.servingsLeft}
-                  onDragStart={(e) => onLeftoverDragStart(e, leftover)}
+                  onDragStart={(e) => onLeftoverDragStart(e, leftover, index)}
                 />
               ))}
             </div>

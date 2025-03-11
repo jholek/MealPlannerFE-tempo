@@ -39,11 +39,27 @@ export interface MealPlan {
   weekStartDate: string;
   meals: {
     [key: string]: {
-      recipeId: string;
+      name: string;
       servings: number;
-      mealType: string;
+      time: string;
+      originalServings: number;
+      recipeId: string;
+      isLeftover?: boolean;
+      ingredients?: {
+        name: string;
+        amount: number;
+        unit: string;
+        category: string;
+        notes?: string;
+      }[];
     };
   };
+  leftovers?: {
+    recipeId: string;
+    recipeName: string;
+    servingsLeft: number;
+    originalServings: number;
+  }[];
   createdAt: string;
   updatedAt: string;
 }

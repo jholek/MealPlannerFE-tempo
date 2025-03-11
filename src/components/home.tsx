@@ -5,6 +5,7 @@ import WeeklyCalendarGrid from "./WeeklyCalendarGrid";
 import IngredientsSidebar from "./IngredientsSidebar";
 import PreferencesForm from "./setup/PreferencesForm";
 import LeftoverCard from "./LeftoverCard";
+import WeeklyPlanSelector from "./WeeklyPlanSelector";
 import { Settings } from "lucide-react";
 import { Button } from "./ui/button";
 import {
@@ -15,6 +16,13 @@ import {
 import { ScrollArea } from "./ui/scroll-area";
 import UserMenu from "./auth/UserMenu";
 import { useAuth } from "@/contexts/AuthContext";
+import { MealPlan } from "@/types";
+import {
+  createMealPlan,
+  updateMealPlan,
+  deleteMealPlan,
+  getCurrentMealPlan,
+} from "@/lib/supabase/mealPlans";
 
 interface Meal {
   id: string;
@@ -60,6 +68,8 @@ const Home = () => {
   const [recipeToRemove, setRecipeToRemove] = useState<PlannedMeal | null>(
     null,
   );
+  const [currentPlanId, setCurrentPlanId] = useState<string>();
+  const [loadingPlan, setLoadingPlan] = useState(true);
 
   const handleDragStart = (e: React.DragEvent, meal: Meal) => {
     e.dataTransfer.setData(
@@ -72,7 +82,11 @@ const Home = () => {
     );
   };
 
-  const handleLeftoverDragStart = (e: React.DragEvent, leftover: Leftover) => {
+  const handleLeftoverDragStart = (
+    e: React.DragEvent,
+    leftover: Leftover,
+    index: number,
+  ) => {
     e.dataTransfer.setData(
       "meal",
       JSON.stringify({
@@ -82,6 +96,7 @@ const Home = () => {
         isLeftover: true,
         originalServings: leftover.originalServings,
         ingredients: [], // Add empty ingredients array for leftovers
+        leftoverIndex: index, // Add index to identify specific leftover instance
       }),
     );
   };
@@ -93,29 +108,16 @@ const Home = () => {
     // Handle existing meal in the target cell if there is one
     if (existingMeal) {
       if (existingMeal.isLeftover) {
-        // Add existing leftover back to leftovers section
-        setLeftovers((prev) => {
-          const existingLeftover = prev.find(
-            (l) => l.recipeId === existingMeal.recipeId,
-          );
-          if (existingLeftover) {
-            return prev.map((l) =>
-              l.recipeId === existingMeal.recipeId
-                ? { ...l, servingsLeft: l.servingsLeft + existingMeal.servings }
-                : l,
-            );
-          } else {
-            return [
-              ...prev,
-              {
-                recipeId: existingMeal.recipeId,
-                recipeName: existingMeal.name,
-                servingsLeft: existingMeal.servings,
-                originalServings: existingMeal.originalServings,
-              },
-            ];
-          }
-        });
+        // Add existing leftover back to leftovers section - always create a new leftover entry
+        setLeftovers((prev) => [
+          ...prev,
+          {
+            recipeId: existingMeal.recipeId,
+            recipeName: existingMeal.name,
+            servingsLeft: existingMeal.servings,
+            originalServings: existingMeal.originalServings,
+          },
+        ]);
       } else {
         // Show confirmation dialog for fresh meal
         setRecipeToRemove(existingMeal);
@@ -138,18 +140,33 @@ const Home = () => {
     // If it's a leftover being used
     if (mealData.isLeftover) {
       // Update leftovers
-      setLeftovers((prev) =>
-        prev
-          .map((leftover) =>
-            leftover.recipeId === mealData.id
-              ? {
-                  ...leftover,
-                  servingsLeft: leftover.servingsLeft - householdSize,
-                }
-              : leftover,
-          )
-          .filter((leftover) => leftover.servingsLeft > 0),
-      );
+      setLeftovers((prev) => {
+        // If we have a specific leftover index, use it to identify the exact leftover
+        if (mealData.leftoverIndex !== undefined) {
+          return prev
+            .map((leftover, idx) =>
+              idx === mealData.leftoverIndex
+                ? {
+                    ...leftover,
+                    servingsLeft: leftover.servingsLeft - householdSize,
+                  }
+                : leftover,
+            )
+            .filter((leftover) => leftover.servingsLeft > 0);
+        } else {
+          // Fallback to previous behavior for backward compatibility
+          return prev
+            .map((leftover) =>
+              leftover.recipeId === mealData.id
+                ? {
+                    ...leftover,
+                    servingsLeft: leftover.servingsLeft - householdSize,
+                  }
+                : leftover,
+            )
+            .filter((leftover) => leftover.servingsLeft > 0);
+        }
+      });
 
       // Add to planned meals with available servings
       const availableServings = Math.min(mealData.servings, householdSize);
@@ -205,24 +222,113 @@ const Home = () => {
   const { user } = useAuth();
 
   useEffect(() => {
-    // Load preferences from DB when component mounts
-    const loadPreferences = async () => {
+    // Load preferences and current meal plan when component mounts
+    const loadData = async () => {
       try {
+        setLoadingPlan(true);
+        // Load preferences
         const prefs = await getPreferences();
         setPreferences(prefs);
         console.log("Loaded preferences:", prefs);
 
         // Force update local storage with the latest preferences
         localStorage.setItem("meal-planner-preferences", JSON.stringify(prefs));
+
+        // Load current meal plan
+        const currentPlan = await getCurrentMealPlan();
+        if (currentPlan) {
+          setCurrentPlanId(currentPlan.id);
+          setPlannedMeals(currentPlan.meals || {});
+          setLeftovers(currentPlan.leftovers || []);
+        }
       } catch (error) {
-        console.error("Failed to load preferences:", error);
+        console.error("Failed to load data:", error);
+      } finally {
+        setLoadingPlan(false);
       }
     };
 
     if (user) {
-      loadPreferences();
+      loadData();
     }
   }, [user]);
+
+  const handlePlanSelect = (plan: MealPlan) => {
+    setCurrentPlanId(plan.id);
+    setPlannedMeals(plan.meals || {});
+    setLeftovers(plan.leftovers || []);
+  };
+
+  const handleSavePlan = async (name: string) => {
+    try {
+      // Clean up the data to ensure it's serializable
+      const cleanPlannedMeals = {};
+
+      // Process each meal to ensure it has all required properties
+      Object.entries(plannedMeals).forEach(([key, meal]) => {
+        cleanPlannedMeals[key] = {
+          name: meal.name || "",
+          servings: meal.servings || 0,
+          time: meal.time || "",
+          originalServings: meal.originalServings || 0,
+          recipeId: meal.recipeId || "",
+          isLeftover: !!meal.isLeftover,
+          ingredients: (meal.ingredients || []).map((ing) => ({
+            name: ing.name || "",
+            amount: ing.amount || 0,
+            unit: ing.unit || "",
+            category: ing.category || "Other",
+            notes: ing.notes || undefined,
+          })),
+        };
+      });
+
+      // Clean up leftovers data
+      const cleanLeftovers = leftovers.map((leftover) => ({
+        recipeId: leftover.recipeId || "",
+        recipeName: leftover.recipeName || "",
+        servingsLeft: leftover.servingsLeft || 0,
+        originalServings: leftover.originalServings || 0,
+      }));
+
+      const planData = {
+        name,
+        weekStartDate: new Date().toISOString(),
+        meals: cleanPlannedMeals,
+        leftovers: cleanLeftovers,
+      };
+
+      if (currentPlanId) {
+        // Update existing plan
+        await updateMealPlan({
+          ...planData,
+          id: currentPlanId,
+        });
+      } else {
+        // Create new plan
+        const newPlan = await createMealPlan(planData);
+        setCurrentPlanId(newPlan.id);
+      }
+    } catch (error) {
+      console.error("Error saving meal plan:", error);
+      throw error; // Re-throw to allow the WeeklyPlanSelector to show the error toast
+    }
+  };
+
+  const handleCreateNewPlan = () => {
+    setCurrentPlanId(undefined);
+    setPlannedMeals({});
+    setLeftovers([]);
+  };
+
+  const handleDeletePlan = async (planId: string) => {
+    await deleteMealPlan(planId);
+    if (planId === currentPlanId) {
+      setCurrentPlanId(undefined);
+      setPlannedMeals({});
+      setLeftovers([]);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-100 p-4 md:p-8">
@@ -247,6 +353,13 @@ const Home = () => {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <WeeklyPlanSelector
+              onPlanSelect={handlePlanSelect}
+              onSavePlan={handleSavePlan}
+              currentPlanId={currentPlanId}
+              onCreateNewPlan={handleCreateNewPlan}
+              onDeletePlan={handleDeletePlan}
+            />
             <Button
               variant="outline"
               size="icon"
@@ -269,7 +382,9 @@ const Home = () => {
             meals={plannedMeals}
             leftovers={leftovers}
             onMealDrop={handleMealDrop}
-            onLeftoverDragStart={handleLeftoverDragStart}
+            onLeftoverDragStart={(e, leftover, index) =>
+              handleLeftoverDragStart(e, leftover, index)
+            }
             onMealDragStart={(e, meal, cellKey) => {
               setDraggedMealKey(cellKey);
               e.dataTransfer.setData(
@@ -286,34 +401,16 @@ const Home = () => {
                 const meal = plannedMeals[draggedMealKey];
                 if (meal) {
                   if (meal.isLeftover) {
-                    // Add back to leftovers and remove from cell
-                    setLeftovers((prev) => {
-                      const existingLeftover = prev.find(
-                        (l) => l.recipeId === meal.recipeId,
-                      );
-                      if (existingLeftover) {
-                        // Add servings to existing leftover card
-                        return prev.map((l) =>
-                          l.recipeId === meal.recipeId
-                            ? {
-                                ...l,
-                                servingsLeft: l.servingsLeft + meal.servings,
-                              }
-                            : l,
-                        );
-                      } else {
-                        // Create new leftover card
-                        return [
-                          ...prev,
-                          {
-                            recipeId: meal.recipeId,
-                            recipeName: meal.name,
-                            servingsLeft: meal.servings,
-                            originalServings: meal.originalServings,
-                          },
-                        ];
-                      }
-                    });
+                    // Add back to leftovers - always create a new leftover entry
+                    setLeftovers((prev) => [
+                      ...prev,
+                      {
+                        recipeId: meal.recipeId,
+                        recipeName: meal.name,
+                        servingsLeft: meal.servings,
+                        originalServings: meal.originalServings,
+                      },
+                    ]);
                     setPlannedMeals((prev) => {
                       const newMeals = { ...prev };
                       delete newMeals[draggedMealKey];
@@ -332,32 +429,16 @@ const Home = () => {
               const meal = plannedMeals[cellKey];
               if (meal) {
                 if (meal.isLeftover) {
-                  // Add back to leftovers
-                  setLeftovers((prev) => {
-                    const existingLeftover = prev.find(
-                      (l) => l.recipeId === meal.recipeId,
-                    );
-                    if (existingLeftover) {
-                      return prev.map((l) =>
-                        l.recipeId === meal.recipeId
-                          ? {
-                              ...l,
-                              servingsLeft: l.servingsLeft + meal.servings,
-                            }
-                          : l,
-                      );
-                    } else {
-                      return [
-                        ...prev,
-                        {
-                          recipeId: meal.recipeId,
-                          recipeName: meal.name,
-                          servingsLeft: meal.servings,
-                          originalServings: meal.originalServings,
-                        },
-                      ];
-                    }
-                  });
+                  // Add back to leftovers - always create a new leftover entry
+                  setLeftovers((prev) => [
+                    ...prev,
+                    {
+                      recipeId: meal.recipeId,
+                      recipeName: meal.name,
+                      servingsLeft: meal.servings,
+                      originalServings: meal.originalServings,
+                    },
+                  ]);
                 } else {
                   setRecipeToRemove(meal);
                   return; // Don't remove the meal yet, wait for dialog confirmation
