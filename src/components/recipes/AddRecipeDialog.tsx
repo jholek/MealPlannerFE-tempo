@@ -45,6 +45,7 @@ interface ParsedIngredient {
   unit: string;
   item: string;
   notes?: string;
+  category?: string;
 }
 
 export default function AddRecipeDialog({ onRecipeAdd }: AddRecipeDialogProps) {
@@ -64,7 +65,7 @@ export default function AddRecipeDialog({ onRecipeAdd }: AddRecipeDialogProps) {
   const [calories, setCalories] = useState(0);
   const [showIngredientInput, setShowIngredientInput] = useState(true);
   const [parserType, setParserType] = useState<"llm" | "rules" | "gemini">(
-    "rules",
+    "gemini",
   );
   const { toast } = useToast();
 
@@ -137,7 +138,7 @@ export default function AddRecipeDialog({ onRecipeAdd }: AddRecipeDialogProps) {
         name: ing.item,
         amount: ing.quantity,
         unit: ing.unit,
-        category: "Uncategorized",
+        category: ing.category || "Other",
         notes: ing.notes,
       })),
       instructions: [],
@@ -200,7 +201,7 @@ export default function AddRecipeDialog({ onRecipeAdd }: AddRecipeDialogProps) {
           Add Recipe
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-3xl w-screen h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="max-w-4xl w-screen h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle>Add New Recipe</DialogTitle>
         </DialogHeader>
@@ -397,7 +398,13 @@ export default function AddRecipeDialog({ onRecipeAdd }: AddRecipeDialogProps) {
                       onClick={() =>
                         setParsedIngredients([
                           ...parsedIngredients,
-                          { quantity: 0, unit: "", item: "", notes: "" },
+                          {
+                            quantity: 0,
+                            unit: "",
+                            item: "",
+                            notes: "",
+                            category: "Other",
+                          },
                         ])
                       }
                     >
@@ -420,6 +427,9 @@ export default function AddRecipeDialog({ onRecipeAdd }: AddRecipeDialogProps) {
                           </th>
                           <th className="p-2 text-left text-sm font-medium text-slate-500">
                             Notes
+                          </th>
+                          <th className="p-2 text-left text-sm font-medium text-slate-500 min-w-[180px]">
+                            Category
                           </th>
                           <th className="p-2 w-10"></th>
                         </tr>

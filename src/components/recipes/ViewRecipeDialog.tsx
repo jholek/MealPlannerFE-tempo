@@ -12,7 +12,7 @@ import {
 import { Button } from "../ui/button";
 import { Label } from "../ui/label";
 import { Input } from "../ui/input";
-import { PlusCircle, Pencil, Save, Trash2 } from "lucide-react";
+import { PlusCircle, Save, Trash2 } from "lucide-react";
 import { deleteRecipe } from "@/lib/supabase/recipes";
 import { useToast } from "../ui/use-toast";
 
@@ -28,7 +28,7 @@ export default function ViewRecipeDialog({
   trigger,
 }: ViewRecipeDialogProps) {
   const [open, setOpen] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
+  // Always in edit mode
   const [recipe, setRecipe] = useState<Recipe>(initialRecipe);
   const { toast } = useToast();
 
@@ -43,7 +43,6 @@ export default function ViewRecipeDialog({
         title: "Success",
         description: "Recipe has been updated",
       });
-      setIsEditing(false);
     } catch (error) {
       console.error("Error updating recipe:", error);
       toast({
@@ -62,6 +61,7 @@ export default function ViewRecipeDialog({
       unit: string;
       item: string;
       notes?: string;
+      category?: string;
     },
   ) => {
     const newIngredients = [...recipe.ingredients];
@@ -69,7 +69,7 @@ export default function ViewRecipeDialog({
       name: updated.item,
       amount: updated.quantity,
       unit: updated.unit,
-      category: "Uncategorized",
+      category: updated.category || "Other",
       notes: updated.notes,
     };
     setRecipe({ ...recipe, ingredients: newIngredients });
@@ -89,60 +89,43 @@ export default function ViewRecipeDialog({
         setOpen(isOpen);
         if (!open) {
           // Reset form state when dialog is closed
-          setIsEditing(false);
           setRecipe(initialRecipe);
         }
       }}
     >
       <DialogTrigger asChild>
-        {trigger || <Button variant="ghost">View Recipe</Button>}
+        {trigger || <Button variant="ghost">Edit Recipe</Button>}
       </DialogTrigger>
-      <DialogContent className="max-w-3xl w-screen h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="max-w-4xl w-screen h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader className="flex flex-row items-center justify-between">
-          <DialogTitle>View Recipe</DialogTitle>
+          <DialogTitle>Edit Recipe</DialogTitle>
           <div className="flex gap-2">
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
-              onClick={() => setIsEditing(!isEditing)}
+              className="text-red-600 hover:text-red-700"
+              onClick={async () => {
+                try {
+                  await deleteRecipe(recipe.id);
+                  toast({
+                    title: "Recipe deleted",
+                    description:
+                      "The recipe has been removed from your collection.",
+                  });
+                  // Update the UI through the callback
+                  onRecipeUpdate(null);
+                } catch (error) {
+                  console.error("Error deleting recipe:", error);
+                  toast({
+                    title: "Error",
+                    description: "Failed to delete recipe. Please try again.",
+                    variant: "destructive",
+                  });
+                }
+              }}
             >
-              {isEditing ? (
-                "Cancel Editing"
-              ) : (
-                <>
-                  <Pencil className="w-4 h-4 mr-2" />
-                  Edit Recipe
-                </>
-              )}
+              <Trash2 className="h-4 w-4" />
             </Button>
-            {!isEditing && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-red-600 hover:text-red-700"
-                onClick={async () => {
-                  try {
-                    await deleteRecipe(recipe.id);
-                    toast({
-                      title: "Recipe deleted",
-                      description:
-                        "The recipe has been removed from your collection.",
-                    });
-                    // Update the UI through the callback
-                    onRecipeUpdate(null);
-                  } catch (error) {
-                    console.error("Error deleting recipe:", error);
-                    toast({
-                      title: "Error",
-                      description: "Failed to delete recipe. Please try again.",
-                      variant: "destructive",
-                    });
-                  }
-                }}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            )}
           </div>
         </DialogHeader>
 
@@ -158,7 +141,6 @@ export default function ViewRecipeDialog({
                     setRecipe({ ...recipe, name: e.target.value })
                   }
                   className="mt-2"
-                  disabled={!isEditing}
                 />
               </div>
               <div>
@@ -171,7 +153,6 @@ export default function ViewRecipeDialog({
                   }
                   placeholder="Original recipe URL"
                   className="mt-2"
-                  disabled={!isEditing}
                 />
               </div>
             </div>
@@ -188,7 +169,6 @@ export default function ViewRecipeDialog({
                     setRecipe({ ...recipe, servings: Number(e.target.value) })
                   }
                   className="mt-2"
-                  disabled={!isEditing}
                 />
               </div>
               <div>
@@ -202,7 +182,6 @@ export default function ViewRecipeDialog({
                     setRecipe({ ...recipe, prepTime: Number(e.target.value) })
                   }
                   className="mt-2"
-                  disabled={!isEditing}
                 />
               </div>
               <div>
@@ -216,7 +195,6 @@ export default function ViewRecipeDialog({
                     setRecipe({ ...recipe, cookTime: Number(e.target.value) })
                   }
                   className="mt-2"
-                  disabled={!isEditing}
                 />
               </div>
             </div>
@@ -239,7 +217,6 @@ export default function ViewRecipeDialog({
                       })
                     }
                     className="text-sm"
-                    disabled={!isEditing}
                   />
                   <span className="text-xs text-slate-500 mt-1 block">
                     Calories
@@ -260,7 +237,6 @@ export default function ViewRecipeDialog({
                       })
                     }
                     className="text-sm"
-                    disabled={!isEditing}
                   />
                   <span className="text-xs text-slate-500 mt-1 block">
                     Protein (g)
@@ -281,7 +257,6 @@ export default function ViewRecipeDialog({
                       })
                     }
                     className="text-sm"
-                    disabled={!isEditing}
                   />
                   <span className="text-xs text-slate-500 mt-1 block">
                     Carbs (g)
@@ -302,7 +277,6 @@ export default function ViewRecipeDialog({
                       })
                     }
                     className="text-sm"
-                    disabled={!isEditing}
                   />
                   <span className="text-xs text-slate-500 mt-1 block">
                     Fat (g)
@@ -314,29 +288,27 @@ export default function ViewRecipeDialog({
             <div>
               <div className="flex items-center justify-between mb-2">
                 <Label>Ingredients</Label>
-                {isEditing && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() =>
-                      setRecipe({
-                        ...recipe,
-                        ingredients: [
-                          ...recipe.ingredients,
-                          {
-                            name: "",
-                            amount: 0,
-                            unit: "",
-                            category: "Uncategorized",
-                          },
-                        ],
-                      })
-                    }
-                  >
-                    <PlusCircle className="h-4 w-4 mr-2" />
-                    Add Row
-                  </Button>
-                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    setRecipe({
+                      ...recipe,
+                      ingredients: [
+                        ...recipe.ingredients,
+                        {
+                          name: "",
+                          amount: 0,
+                          unit: "",
+                          category: "Other",
+                        },
+                      ],
+                    })
+                  }
+                >
+                  <PlusCircle className="h-4 w-4 mr-2" />
+                  Add Row
+                </Button>
               </div>
               <div className="border rounded-md">
                 <table className="w-full">
@@ -354,7 +326,10 @@ export default function ViewRecipeDialog({
                       <th className="p-2 text-left text-sm font-medium text-slate-500">
                         Notes
                       </th>
-                      {isEditing && <th className="p-2 w-10"></th>}
+                      <th className="p-2 text-left text-sm font-medium text-slate-500 min-w-[180px]">
+                        Category
+                      </th>
+                      <th className="p-2 w-10"></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -365,6 +340,7 @@ export default function ViewRecipeDialog({
                         unit={ing.unit}
                         item={ing.name}
                         notes={ing.notes || ""}
+                        category={ing.category}
                         onUpdate={(updated) => updateIngredient(idx, updated)}
                         onDelete={() => deleteIngredient(idx)}
                       />
@@ -376,17 +352,15 @@ export default function ViewRecipeDialog({
           </div>
         </div>
 
-        {isEditing && (
-          <div className="border-t bg-white p-4 mt-auto">
-            <Button
-              onClick={handleSave}
-              className="w-full bg-slate-600 hover:bg-slate-700"
-            >
-              <Save className="w-4 h-4 mr-2" />
-              Save Changes
-            </Button>
-          </div>
-        )}
+        <div className="border-t bg-white p-4 mt-auto">
+          <Button
+            onClick={handleSave}
+            className="w-full bg-slate-600 hover:bg-slate-700"
+          >
+            <Save className="w-4 h-4 mr-2" />
+            Save Changes
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   );

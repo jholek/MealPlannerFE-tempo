@@ -31,10 +31,12 @@ const IngredientsSidebar = ({ ingredients = [] }: IngredientsSidebarProps) => {
   // Group ingredients by category
   const groupedIngredients = ingredients.reduce(
     (acc, ingredient) => {
-      if (!acc[ingredient.category]) {
-        acc[ingredient.category] = [];
+      // Use the ingredient's category or default to "Other"
+      const category = ingredient.category || "Other";
+      if (!acc[category]) {
+        acc[category] = [];
       }
-      acc[ingredient.category].push(ingredient);
+      acc[category].push(ingredient);
       return acc;
     },
     {} as Record<string, Ingredient[]>,

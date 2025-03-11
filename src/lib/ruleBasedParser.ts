@@ -3,6 +3,7 @@ interface ParsedIngredient {
   unit: string;
   item: string;
   notes?: string;
+  category?: string;
 }
 
 function convertFractionToDecimal(fraction: string): number {
@@ -31,6 +32,8 @@ function parseQuantity(quantityStr: string): number {
   return convertFractionToDecimal(quantityStr);
 }
 
+import { guessIngredientCategory } from "./ingredientTags";
+
 export function parseIngredientLine(line: string): ParsedIngredient | null {
   // Skip empty lines
   if (!line.trim()) return null;
@@ -38,8 +41,20 @@ export function parseIngredientLine(line: string): ParsedIngredient | null {
   // Special case: salt and pepper
   if (line.toLowerCase().includes("salt and pepper to taste")) {
     return [
-      { quantity: 0, unit: "", item: "salt", notes: "to taste" },
-      { quantity: 0, unit: "", item: "pepper", notes: "to taste" },
+      {
+        quantity: 0,
+        unit: "",
+        item: "salt",
+        notes: "to taste",
+        category: "Herbs & Spices",
+      },
+      {
+        quantity: 0,
+        unit: "",
+        item: "pepper",
+        notes: "to taste",
+        category: "Herbs & Spices",
+      },
     ];
   }
 
@@ -129,6 +144,7 @@ export function parseIngredientLine(line: string): ParsedIngredient | null {
     unit,
     item,
     notes,
+    category: guessIngredientCategory(item),
   };
 }
 
