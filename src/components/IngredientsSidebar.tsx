@@ -38,21 +38,18 @@ const IngredientsSidebar = ({ ingredients = [] }: IngredientsSidebarProps) => {
   const [completedOpen, setCompletedOpen] = useState(false);
 
   // Add unique IDs to ingredients if they don't have them
-  const ingredientsWithIds = ingredients.map((ing) => ({
+  const ingredientsWithIds = ingredients.map((ing, index) => ({
     ...ing,
     id:
       ing.id ||
-      `${ing.name}-${ing.amount}-${ing.unit}`
+      `${ing.name}-${ing.amount}-${ing.unit}-${index}`
         .replace(/\s+/g, "-")
         .toLowerCase(),
   }));
 
-  // Group ingredients by category and filter out checked items
-  const groupedIngredients = ingredientsWithIds.reduce(
+  // First, create a stable order of all ingredients by category
+  const allGroupedIngredients = ingredientsWithIds.reduce(
     (acc, ingredient) => {
-      // Skip checked items for the main list
-      if (checkedItems[ingredient.id]) return acc;
-
       // Use the ingredient's category or default to "Other"
       const category = ingredient.category || "Other";
       if (!acc[category]) {
@@ -64,12 +61,24 @@ const IngredientsSidebar = ({ ingredients = [] }: IngredientsSidebarProps) => {
     {} as Record<string, Ingredient[]>,
   );
 
-  // Get completed items
+  // Then filter out checked items while maintaining the original order
+  const groupedIngredients = Object.entries(allGroupedIngredients).reduce(
+    (acc, [category, items]) => {
+      const uncheckedItems = items.filter((item) => !checkedItems[item.id]);
+      if (uncheckedItems.length > 0) {
+        acc[category] = uncheckedItems;
+      }
+      return acc;
+    },
+    {} as Record<string, Ingredient[]>,
+  );
+
+  // Get completed items while preserving original order
   const completedItems = ingredientsWithIds.filter(
     (ing) => checkedItems[ing.id],
   );
 
-  // Group completed items by category
+  // Group completed items by category while maintaining original order
   const groupedCompletedItems = completedItems.reduce(
     (acc, ingredient) => {
       const category = ingredient.category || "Other";
@@ -88,23 +97,19 @@ const IngredientsSidebar = ({ ingredients = [] }: IngredientsSidebarProps) => {
     .map(([category, items]) => ({ category, count: items.length }));
 
   const handleCheckboxChange = (id: string) => {
-    setCheckedItems((prev) => ({
-      ...prev,
-      [id]: !prev[id],
-    }));
+    setCheckedItems((prev) => {
+      const newCheckedItems = { ...prev };
+      if (newCheckedItems[id]) {
+        delete newCheckedItems[id];
+      } else {
+        newCheckedItems[id] = true;
+      }
+      return newCheckedItems;
+    });
   };
 
   const handleDeselectAll = () => {
-    // Create a new object with all items set to false
-    const resetCheckedItems = Object.keys(checkedItems).reduce(
-      (acc, id) => {
-        acc[id] = false;
-        return acc;
-      },
-      {} as Record<string, boolean>,
-    );
-
-    setCheckedItems(resetCheckedItems);
+    setCheckedItems({});
   };
 
   return (
