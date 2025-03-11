@@ -5,6 +5,7 @@ export interface UserPreferences {
 
 export interface Recipe {
   id: string;
+  userId?: string;
   name: string;
   description: string;
   servings: number;
@@ -33,6 +34,7 @@ export interface Recipe {
 
 export interface MealPlan {
   id: string;
+  userId?: string;
   name: string;
   weekStartDate: string;
   meals: {
@@ -44,4 +46,12 @@ export interface MealPlan {
   };
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ParsedIngredient {
+  quantity: number;
+  unit: string;
+  item: string;
+  notes?: string;
+  category?: string;
 }

@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import RemoveRecipeDialog from "./recipes/RemoveRecipeDialog";
 import RecipeBrowser from "./recipes/RecipeBrowser";
 import WeeklyCalendarGrid from "./WeeklyCalendarGrid";
@@ -7,8 +7,14 @@ import PreferencesForm from "./setup/PreferencesForm";
 import LeftoverCard from "./LeftoverCard";
 import { Settings } from "lucide-react";
 import { Button } from "./ui/button";
-import { getPreferences, savePreferences } from "@/lib/preferences";
+import {
+  getPreferences,
+  getPreferencesSync,
+  savePreferences,
+} from "@/lib/preferences";
 import { ScrollArea } from "./ui/scroll-area";
+import UserMenu from "./auth/UserMenu";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Meal {
   id: string;
@@ -126,7 +132,7 @@ const Home = () => {
       });
     }
 
-    const preferences = getPreferences();
+    // Use the current state preferences instead of async getPreferences
     const { householdSize } = preferences;
 
     // If it's a leftover being used
@@ -195,36 +201,62 @@ const Home = () => {
   };
 
   const [showPrefs, setShowPrefs] = useState(false);
-  const [preferences, setPreferences] = useState(getPreferences());
+  const [preferences, setPreferences] = useState(getPreferencesSync());
+  const { user } = useAuth();
+
+  useEffect(() => {
+    // Load preferences from DB when component mounts
+    const loadPreferences = async () => {
+      try {
+        const prefs = await getPreferences();
+        setPreferences(prefs);
+        console.log("Loaded preferences:", prefs);
+
+        // Force update local storage with the latest preferences
+        localStorage.setItem("meal-planner-preferences", JSON.stringify(prefs));
+      } catch (error) {
+        console.error("Failed to load preferences:", error);
+      }
+    };
+
+    if (user) {
+      loadPreferences();
+    }
+  }, [user]);
 
   return (
     <div className="min-h-screen bg-gray-100 p-4 md:p-8">
       <PreferencesForm
         open={showPrefs}
         onOpenChange={setShowPrefs}
-        onSubmit={(prefs) => {
-          savePreferences(prefs);
+        onSubmit={async (prefs) => {
+          await savePreferences(prefs);
           setPreferences(prefs);
           setShowPrefs(false);
         }}
-        initialPreferences={getPreferences()}
+        initialPreferences={preferences}
       />
       <div className="mb-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
-            Meal Planning Dashboard
-          </h1>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => setShowPrefs(true)}
-          >
-            <Settings className="h-4 w-4" />
-          </Button>
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
+              Meal Planning Dashboard
+            </h1>
+            <p className="text-gray-600 mt-2 text-sm md:text-base">
+              Drag and drop meals to plan your week
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setShowPrefs(true)}
+            >
+              <Settings className="h-4 w-4" />
+            </Button>
+            <UserMenu />
+          </div>
         </div>
-        <p className="text-gray-600 mt-2 text-sm md:text-base">
-          Drag and drop meals to plan your week
-        </p>
       </div>
 
       {/* Top row with recipes and calendar */}

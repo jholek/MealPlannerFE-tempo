@@ -126,32 +126,30 @@ export default function AddRecipeDialog({ onRecipeAdd }: AddRecipeDialogProps) {
   const handleCreateRecipe = async () => {
     if (!parsedIngredients || !recipeName) return;
 
-    const newRecipe: Recipe = {
-      id: crypto.randomUUID(),
-      name: recipeName,
-      description: "",
-      servings,
-      prepTime,
-      cookTime,
-      url: recipeUrl,
-      ingredients: parsedIngredients.map((ing) => ({
-        name: ing.item,
-        amount: ing.quantity,
-        unit: ing.unit,
-        category: ing.category || "Other",
-        notes: ing.notes,
-      })),
-      instructions: [],
-      nutritionalInfo: {
-        calories: calories || protein * 4 + carbs * 4 + fat * 9,
-        protein: protein / servings,
-        carbs: carbs / servings,
-        fat: fat / servings,
-      },
-      tags: [],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
+    const newRecipe: Omit<Recipe, "id" | "createdAt" | "updatedAt" | "userId"> =
+      {
+        name: recipeName,
+        description: "",
+        servings,
+        prepTime,
+        cookTime,
+        url: recipeUrl,
+        ingredients: parsedIngredients.map((ing) => ({
+          name: ing.item,
+          amount: ing.quantity,
+          unit: ing.unit,
+          category: ing.category || "Other",
+          notes: ing.notes,
+        })),
+        instructions: [],
+        nutritionalInfo: {
+          calories: calories || protein * 4 + carbs * 4 + fat * 9,
+          protein: protein / servings,
+          carbs: carbs / servings,
+          fat: fat / servings,
+        },
+        tags: [],
+      };
 
     try {
       const savedRecipe = await createRecipe(newRecipe);
@@ -166,7 +164,8 @@ export default function AddRecipeDialog({ onRecipeAdd }: AddRecipeDialogProps) {
       console.error("Error creating recipe:", error);
       toast({
         title: "Error",
-        description: "Failed to create recipe. Please try again.",
+        description:
+          error.message || "Failed to create recipe. Please try again.",
         variant: "destructive",
       });
       return;

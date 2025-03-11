@@ -12,6 +12,7 @@ interface RecipeBrowserProps {
 
 import { fetchRecipes } from "@/lib/supabase/recipes";
 import { useEffect, useState } from "react";
+import { useToast } from "../ui/use-toast";
 
 const DEFAULT_RECIPES: Recipe[] = [];
 
@@ -20,6 +21,7 @@ export default function RecipeBrowser({
 }: RecipeBrowserProps) {
   const [recipes, setRecipes] = useState<Recipe[]>(DEFAULT_RECIPES);
   const [isLoading, setIsLoading] = useState(true);
+  const { toast } = useToast();
 
   const loadRecipes = async () => {
     try {
@@ -27,6 +29,13 @@ export default function RecipeBrowser({
       setRecipes(data);
     } catch (error) {
       console.error("Error loading recipes:", error);
+      toast({
+        title: "Error loading recipes",
+        description:
+          error.message ||
+          "Failed to load recipes. Please check your database connection.",
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
