@@ -71,3 +71,24 @@ export interface ParsedIngredient {
   notes?: string;
   category?: string;
 }
+
+export interface SharedListItem {
+  id: string;
+  name: string;
+  amount: number;
+  unit: string;
+  category: string;
+  notes?: string;
+  checked: boolean;
+  createdAt?: string;
+}
+
+export interface SharedList {
+  id: string;
+  userId: string;
+  name: string;
+  items: SharedListItem[];
+  shareId?: string;
+  createdAt: string;
+  updatedAt: string;
+}

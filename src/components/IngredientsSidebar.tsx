@@ -14,6 +14,7 @@ import {
   ChevronUp,
   Plus,
   Trash2,
+  Share,
 } from "lucide-react";
 import {
   Dialog,
@@ -28,6 +29,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "./ui/collapsible";
+import ShareListDialog from "./ShareListDialog";
 
 interface Ingredient {
   name: string;
@@ -172,14 +174,26 @@ const IngredientsSidebar = ({ ingredients = [] }: IngredientsSidebarProps) => {
               </Badge>
             </div>
           </div>
-          <Button
-            onClick={() => setOpen(true)}
-            className="bg-purple-600 hover:bg-purple-700 h-8 text-sm"
-            size="sm"
-          >
-            <ShoppingCart className="w-3 h-3 mr-1" />
-            View Full List
-          </Button>
+          <div className="flex items-center gap-2">
+            <ShareListDialog
+              ingredients={ingredientsWithIds}
+              checkedItems={checkedItems}
+              trigger={
+                <Button variant="outline" size="sm" className="h-8 text-sm">
+                  <Share className="w-3 h-3 mr-1" />
+                  Share
+                </Button>
+              }
+            />
+            <Button
+              onClick={() => setOpen(true)}
+              className="bg-purple-600 hover:bg-purple-700 h-8 text-sm"
+              size="sm"
+            >
+              <ShoppingCart className="w-3 h-3 mr-1" />
+              View Full List
+            </Button>
+          </div>
         </div>
 
         {/* Preview of ingredients */}

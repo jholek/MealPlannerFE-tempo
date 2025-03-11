@@ -411,13 +411,13 @@ const Home = () => {
           id="recipe-drawer"
         >
           <div
-            className="absolute -right-3 top-1/2 transform -translate-y-1/2 z-[9999]"
+            className="absolute -right-3 top-1/2 transform -translate-y-1/2 z-[40]"
             style={{ pointerEvents: "auto" }}
           >
             <Button
               variant="outline"
               size="icon"
-              className="h-6 w-6 rounded-full bg-white shadow-md border-gray-200 relative z-[9999]"
+              className="h-6 w-6 rounded-full bg-white shadow-md border-gray-200 relative z-[40]"
               onClick={() => {
                 const drawer = document.getElementById("recipe-drawer");
                 const toggleButton = document.getElementById(
