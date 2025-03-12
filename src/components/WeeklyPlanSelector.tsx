@@ -33,6 +33,8 @@ interface WeeklyPlanSelectorProps {
   currentPlanId?: string;
   onCreateNewPlan: () => void;
   onDeletePlan: (planId: string) => Promise<void>;
+  initialOpenShareDialog?: boolean;
+  onShareDialogOpenChange?: (open: boolean) => void;
 }
 
 const WeeklyPlanSelector = React.forwardRef(function WeeklyPlanSelector(
@@ -42,13 +44,35 @@ const WeeklyPlanSelector = React.forwardRef(function WeeklyPlanSelector(
     currentPlanId,
     onCreateNewPlan,
     onDeletePlan,
+    initialOpenShareDialog = false,
+    onShareDialogOpenChange = () => {},
   }: WeeklyPlanSelectorProps,
   ref,
 ) {
   const [plans, setPlans] = useState<MealPlan[]>([]);
   const [loading, setLoading] = useState(false);
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
-  const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [shareDialogOpen, setShareDialogOpen] = useState(
+    initialOpenShareDialog,
+  );
+
+  // Effect to sync with external state
+  useEffect(() => {
+    setShareDialogOpen(initialOpenShareDialog);
+  }, [initialOpenShareDialog]);
+
+  // Custom setter that also calls the external handler
+  const handleShareDialogOpenChange = (open: boolean) => {
+    setShareDialogOpen(open);
+    onShareDialogOpenChange(open);
+
+    // Update URL directly when opening the share dialog
+    if (open) {
+      window.history.pushState({}, "", "/share-list");
+    } else if (window.location.pathname === "/share-list") {
+      window.history.pushState({}, "", "/");
+    }
+  };
   const [planName, setPlanName] = useState("");
   const [selectedPlanId, setSelectedPlanId] = useState<string>("");
   const [shareUrl, setShareUrl] = useState("");
@@ -541,7 +565,7 @@ const WeeklyPlanSelector = React.forwardRef(function WeeklyPlanSelector(
         </DialogContent>
       </Dialog>
 
-      <Dialog open={shareDialogOpen} onOpenChange={setShareDialogOpen}>
+      <Dialog open={shareDialogOpen} onOpenChange={handleShareDialogOpenChange}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Share Shopping List</DialogTitle>
@@ -579,7 +603,9 @@ const WeeklyPlanSelector = React.forwardRef(function WeeklyPlanSelector(
             )}
           </div>
           <DialogFooter>
-            <Button onClick={() => setShareDialogOpen(false)}>Close</Button>
+            <Button onClick={() => handleShareDialogOpenChange(false)}>
+              Close
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

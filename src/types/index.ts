@@ -82,6 +82,9 @@ export interface SharedListItem {
   notes?: string;
   checked: boolean;
   createdAt?: string;
+  mealKey?: string;
+  recipeId?: string;
+  isManual?: boolean;
 }
 
 export interface SharedList {

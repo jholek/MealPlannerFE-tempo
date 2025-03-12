@@ -114,13 +114,54 @@ export async function updateSharedList(
       notes: item.notes ? sanitizeInput(item.notes) : undefined,
     }));
 
-    const { error } = await supabase
+    console.log("Updating shared list with items:", sanitizedItems);
+
+    // First, get the current shared list to verify it exists
+    const { data: currentList, error: fetchError } = await supabase
+      .from("shared_lists")
+      .select("*")
+      .eq("share_id", shareId)
+      .single();
+
+    if (fetchError) {
+      console.error("Error fetching shared list:", fetchError);
+      throw new Error(`Failed to fetch shared list: ${fetchError.message}`);
+    }
+
+    console.log("Current shared list before update:", currentList);
+
+    console.log(
+      "Updating shared list with shareId:",
+      shareId,
+      "Items count:",
+      sanitizedItems.length,
+    );
+
+    // Update the shared list with the new items
+    const { data, error } = await supabase
       .from("shared_lists")
       .update({
         items: sanitizedItems,
         updated_at: new Date().toISOString(),
       })
       .eq("share_id", shareId);
+
+    // Log the update result
+    console.log("Database update result:", { data, error, shareId });
+
+    // Double-check that the update was successful by fetching the latest data
+    const { data: verifyData, error: verifyError } = await supabase
+      .from("shared_lists")
+      .select("*")
+      .eq("share_id", shareId)
+      .single();
+
+    if (verifyError) {
+      console.error("Error verifying update:", verifyError);
+      throw new Error(`Failed to verify update: ${verifyError.message}`);
+    }
+
+    console.log("Verified database update - current items:", verifyData.items);
 
     if (error) {
       console.error("Supabase update error:", error);

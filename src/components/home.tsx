@@ -52,6 +52,13 @@ interface PlannedMeal {
   }[];
 }
 
+type ModalType =
+  | "shopping-list"
+  | "add-recipe"
+  | "share-list"
+  | "preferences"
+  | null;
+
 interface Leftover {
   recipeId: string;
   recipeName: string;
@@ -59,7 +66,11 @@ interface Leftover {
   originalServings: number;
 }
 
-const Home = () => {
+interface HomeProps {
+  initialOpenModal?: ModalType;
+}
+
+const Home = ({ initialOpenModal = null }: HomeProps) => {
   const [plannedMeals, setPlannedMeals] = useState<{
     [key: string]: PlannedMeal;
   }>({});
@@ -102,7 +113,11 @@ const Home = () => {
     );
   };
 
-  const handleMealDrop = (day: string, mealTime: string, mealData: any) => {
+  const handleMealDrop = async (
+    day: string,
+    mealTime: string,
+    mealData: any,
+  ) => {
     const targetCellKey = `${day}-${mealTime}`;
     const existingMeal = plannedMeals[targetCellKey];
 
@@ -192,8 +207,8 @@ const Home = () => {
     const leftoverServings = servingsAvailable - servingsNeeded;
 
     // Add to planned meals
-    setPlannedMeals((prev) => ({
-      ...prev,
+    const updatedMeals = {
+      ...plannedMeals,
       [targetCellKey]: {
         name: mealData.name,
         servings: servingsNeeded,
@@ -202,7 +217,9 @@ const Home = () => {
         recipeId: mealData.id,
         ingredients: mealData.ingredients || [],
       },
-    }));
+    };
+
+    setPlannedMeals(updatedMeals);
 
     // If there are leftovers, add them to the leftovers list
     if (leftoverServings > 0) {
@@ -216,9 +233,23 @@ const Home = () => {
         },
       ]);
     }
+
+    // Update the shopping list if we have a current plan
+    if (currentPlanId) {
+      try {
+        const { updateShoppingListItems } = await import(
+          "@/lib/supabase/shoppingList"
+        );
+        await updateShoppingListItems(currentPlanId, updatedMeals);
+      } catch (error) {
+        console.error("Error updating shopping list:", error);
+      }
+    }
   };
 
-  const [showPrefs, setShowPrefs] = useState(false);
+  const [showPrefs, setShowPrefs] = useState(
+    initialOpenModal === "preferences",
+  );
   const [preferences, setPreferences] = useState(getPreferencesSync());
   const { user } = useAuth();
 
@@ -296,6 +327,9 @@ const Home = () => {
 
   const handleSavePlan = async (name: string) => {
     try {
+      console.log("Saving meal plan with name:", name);
+      console.log("Current planned meals before save:", plannedMeals);
+
       // Clean up the data to ensure it's serializable
       const cleanPlannedMeals = {};
 
@@ -333,16 +367,49 @@ const Home = () => {
         leftovers: cleanLeftovers,
       };
 
+      console.log("Prepared plan data for saving:", planData);
+
+      let planId;
       if (currentPlanId) {
         // Update existing plan
-        await updateMealPlan({
+        console.log("Updating existing plan with ID:", currentPlanId);
+        const updatedPlan = await updateMealPlan({
           ...planData,
           id: currentPlanId,
         });
+        console.log("Plan updated successfully:", updatedPlan);
+        planId = currentPlanId;
       } else {
         // Create new plan
+        console.log("Creating new plan");
         const newPlan = await createMealPlan(planData);
+        console.log("New plan created:", newPlan);
         setCurrentPlanId(newPlan.id);
+        planId = newPlan.id;
+      }
+
+      // Update the shopping list with the latest ingredients
+      console.log(
+        "Updating shopping list with ingredients from:",
+        cleanPlannedMeals,
+      );
+      const { updateShoppingListItems } = await import(
+        "@/lib/supabase/shoppingList"
+      );
+      await updateShoppingListItems(planId, cleanPlannedMeals);
+
+      // Verify the plan was saved correctly by fetching it again
+      const { supabase } = await import("@/lib/supabase");
+      const { data: verifyPlan, error: verifyError } = await supabase
+        .from("meal_plans")
+        .select("*")
+        .eq("id", planId)
+        .single();
+
+      if (verifyError) {
+        console.error("Error verifying saved plan:", verifyError);
+      } else {
+        console.log("Verified saved plan:", verifyPlan);
       }
     } catch (error) {
       console.error("Error saving meal plan:", error);
@@ -368,22 +435,98 @@ const Home = () => {
   // Create a ref to access the WeeklyPlanSelector component's methods
   const weeklyPlanSelectorRef = useRef(null);
 
+  // State to track which modal should be open
+  const [openModal, setOpenModal] = useState<ModalType>(initialOpenModal);
+
+  // Effect to handle modal opening based on route
+  useEffect(() => {
+    if (initialOpenModal) {
+      setOpenModal(initialOpenModal);
+    }
+  }, [initialOpenModal]);
+
+  // Update URL when modal state changes
+  useEffect(() => {
+    if (openModal) {
+      // Update the URL without causing a page reload
+      window.history.pushState({}, "", `/${openModal}`);
+    } else if (window.location.pathname !== "/") {
+      // Reset to home URL when modal closes
+      window.history.pushState({}, "", "/");
+    }
+  }, [openModal]);
+
   const handleShareShoppingList = () => {
     // Call the handleShareShoppingList method directly through the ref
     if (weeklyPlanSelectorRef.current) {
       weeklyPlanSelectorRef.current.handleShareShoppingList();
+    }
+
+    // Set the modal state to share-list
+    setOpenModal("share-list");
+
+    // Update URL directly
+    window.history.pushState({}, "", "/share-list");
+  };
+
+  const handleMealRemove = async (cellKey: string) => {
+    const meal = plannedMeals[cellKey];
+    if (meal) {
+      if (meal.isLeftover) {
+        // Add back to leftovers - always create a new leftover entry
+        setLeftovers((prev) => [
+          ...prev,
+          {
+            recipeId: meal.recipeId,
+            recipeName: meal.name,
+            servingsLeft: meal.servings,
+            originalServings: meal.originalServings,
+          },
+        ]);
+
+        // Remove the meal from the grid
+        const updatedMeals = { ...plannedMeals };
+        delete updatedMeals[cellKey];
+        setPlannedMeals(updatedMeals);
+
+        // Update the shopping list if we have a current plan
+        if (currentPlanId) {
+          try {
+            const { updateShoppingListItems } = await import(
+              "@/lib/supabase/shoppingList"
+            );
+            await updateShoppingListItems(currentPlanId, updatedMeals);
+          } catch (error) {
+            console.error("Error updating shopping list:", error);
+          }
+        }
+      } else {
+        setRecipeToRemove(meal);
+        return; // Don't remove the meal yet, wait for dialog confirmation
+      }
     }
   };
 
   return (
     <div className="min-h-screen bg-gray-100 p-4 md:p-8">
       <PreferencesForm
-        open={showPrefs}
-        onOpenChange={setShowPrefs}
+        open={showPrefs || openModal === "preferences"}
+        onOpenChange={(open) => {
+          setShowPrefs(open);
+          if (!open) setOpenModal(null);
+
+          // Update URL directly when opening preferences
+          if (open) {
+            window.history.pushState({}, "", "/preferences");
+          } else if (window.location.pathname === "/preferences") {
+            window.history.pushState({}, "", "/");
+          }
+        }}
         onSubmit={async (prefs) => {
           await savePreferences(prefs);
           setPreferences(prefs);
           setShowPrefs(false);
+          setOpenModal(null);
         }}
         initialPreferences={preferences}
       />
@@ -405,11 +548,19 @@ const Home = () => {
               currentPlanId={currentPlanId}
               onCreateNewPlan={handleCreateNewPlan}
               onDeletePlan={handleDeletePlan}
+              initialOpenShareDialog={openModal === "share-list"}
+              onShareDialogOpenChange={(open) => {
+                if (!open) setOpenModal(null);
+                else setOpenModal("share-list");
+              }}
             />
             <Button
               variant="outline"
               size="icon"
-              onClick={() => setShowPrefs(true)}
+              onClick={() => {
+                setShowPrefs(true);
+                setOpenModal("preferences");
+              }}
             >
               <Settings className="h-4 w-4" />
             </Button>
@@ -483,7 +634,14 @@ const Home = () => {
                 </span>
               </div>
             </div>
-            <RecipeBrowser onDragStart={handleDragStart} />
+            <RecipeBrowser
+              onDragStart={handleDragStart}
+              initialOpenAddRecipe={openModal === "add-recipe"}
+              onAddRecipeOpenChange={(open) => {
+                if (!open) setOpenModal(null);
+                else setOpenModal("add-recipe");
+              }}
+            />
           </div>
         </div>
         <div className="w-full overflow-x-auto">
@@ -534,32 +692,7 @@ const Home = () => {
               setDraggedMealKey(null);
             }}
             preferences={preferences}
-            onMealRemove={(cellKey) => {
-              const meal = plannedMeals[cellKey];
-              if (meal) {
-                if (meal.isLeftover) {
-                  // Add back to leftovers - always create a new leftover entry
-                  setLeftovers((prev) => [
-                    ...prev,
-                    {
-                      recipeId: meal.recipeId,
-                      recipeName: meal.name,
-                      servingsLeft: meal.servings,
-                      originalServings: meal.originalServings,
-                    },
-                  ]);
-                } else {
-                  setRecipeToRemove(meal);
-                  return; // Don't remove the meal yet, wait for dialog confirmation
-                }
-                // Remove the meal from the grid
-                setPlannedMeals((prev) => {
-                  const newMeals = { ...prev };
-                  delete newMeals[cellKey];
-                  return newMeals;
-                });
-              }
-            }}
+            onMealRemove={handleMealRemove}
           />
         </div>
       </div>
@@ -574,6 +707,11 @@ const Home = () => {
           }
           currentPlanId={currentPlanId}
           onShareList={handleShareShoppingList}
+          open={openModal === "shopping-list"}
+          onOpenChange={(open) => {
+            if (!open) setOpenModal(null);
+            else setOpenModal("shopping-list");
+          }}
         />
       </div>
 
@@ -583,23 +721,35 @@ const Home = () => {
           if (!open) setRecipeToRemove(null);
         }}
         recipeName={recipeToRemove?.name || ""}
-        onConfirm={() => {
+        onConfirm={async () => {
           if (recipeToRemove) {
             const recipeId = recipeToRemove.recipeId;
             // Remove all instances of this recipe
-            setPlannedMeals((prev) => {
-              const newMeals = { ...prev };
-              Object.entries(newMeals).forEach(([key, value]) => {
-                if (value.recipeId === recipeId) {
-                  delete newMeals[key];
-                }
-              });
-              return newMeals;
+            const updatedMeals = { ...plannedMeals };
+            Object.entries(updatedMeals).forEach(([key, value]) => {
+              if (value.recipeId === recipeId) {
+                delete updatedMeals[key];
+              }
             });
+            setPlannedMeals(updatedMeals);
+
             // Also remove from leftovers
             setLeftovers((prev) =>
               prev.filter((leftover) => leftover.recipeId !== recipeId),
             );
+
+            // Update the shopping list if we have a current plan
+            if (currentPlanId) {
+              try {
+                const { updateShoppingListItems } = await import(
+                  "@/lib/supabase/shoppingList"
+                );
+                await updateShoppingListItems(currentPlanId, updatedMeals);
+              } catch (error) {
+                console.error("Error updating shopping list:", error);
+              }
+            }
+
             setRecipeToRemove(null);
           }
         }}

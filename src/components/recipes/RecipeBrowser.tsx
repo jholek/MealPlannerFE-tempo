@@ -8,6 +8,8 @@ import AddRecipeDialog from "./AddRecipeDialog";
 interface RecipeBrowserProps {
   recipes?: Recipe[];
   onDragStart?: (e: React.DragEvent, recipe: Recipe) => void;
+  initialOpenAddRecipe?: boolean;
+  onAddRecipeOpenChange?: (open: boolean) => void;
 }
 
 import { fetchRecipes } from "@/lib/supabase/recipes";
@@ -18,6 +20,8 @@ const DEFAULT_RECIPES: Recipe[] = [];
 
 export default function RecipeBrowser({
   onDragStart = () => {},
+  initialOpenAddRecipe = false,
+  onAddRecipeOpenChange = () => {},
 }: RecipeBrowserProps) {
   const [recipes, setRecipes] = useState<Recipe[]>(DEFAULT_RECIPES);
   const [isLoading, setIsLoading] = useState(true);
@@ -53,6 +57,8 @@ export default function RecipeBrowser({
           <Input placeholder="Search recipes..." className="pl-8" />
         </div>
         <AddRecipeDialog
+          initialOpen={initialOpenAddRecipe}
+          onOpenChange={onAddRecipeOpenChange}
           onRecipeAdd={(recipe) => {
             // Always refresh the list to ensure we have the latest data
             loadRecipes();

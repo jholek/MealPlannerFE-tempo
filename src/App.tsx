@@ -55,6 +55,40 @@ function App() {
               }
             />
 
+            {/* Modal routes - these will open the corresponding modals */}
+            <Route
+              path="/shopping-list"
+              element={
+                <AuthGuard>
+                  <Home initialOpenModal="shopping-list" />
+                </AuthGuard>
+              }
+            />
+            <Route
+              path="/add-recipe"
+              element={
+                <AuthGuard>
+                  <Home initialOpenModal="add-recipe" />
+                </AuthGuard>
+              }
+            />
+            <Route
+              path="/share-list"
+              element={
+                <AuthGuard>
+                  <Home initialOpenModal="share-list" />
+                </AuthGuard>
+              }
+            />
+            <Route
+              path="/preferences"
+              element={
+                <AuthGuard>
+                  <Home initialOpenModal="preferences" />
+                </AuthGuard>
+              }
+            />
+
             {/* Tempo routes for development */}
             {import.meta.env.VITE_TEMPO === "true" && (
               <Route path="/tempobook/*" element={useRoutes(routes)} />

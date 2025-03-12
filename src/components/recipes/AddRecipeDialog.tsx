@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Recipe } from "@/types";
 import { EditableIngredientRow } from "./EditableIngredientRow";
 import { createRecipe } from "@/lib/supabase/recipes";
@@ -38,6 +38,8 @@ import ParserDebugDialog from "./ParserDebugDialog";
 
 interface AddRecipeDialogProps {
   onRecipeAdd: (recipe: Recipe) => void;
+  initialOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 interface ParsedIngredient {
@@ -48,8 +50,30 @@ interface ParsedIngredient {
   category?: string;
 }
 
-export default function AddRecipeDialog({ onRecipeAdd }: AddRecipeDialogProps) {
-  const [open, setOpen] = useState(false);
+export default function AddRecipeDialog({
+  onRecipeAdd,
+  initialOpen = false,
+  onOpenChange = () => {},
+}: AddRecipeDialogProps) {
+  const [open, setOpen] = useState(initialOpen);
+
+  // Effect to sync with external state
+  useEffect(() => {
+    setOpen(initialOpen);
+  }, [initialOpen]);
+
+  // Custom setter that also calls the external handler
+  const handleOpenChange = (newOpen: boolean) => {
+    setOpen(newOpen);
+    onOpenChange(newOpen);
+
+    // Update URL directly when opening the add recipe dialog
+    if (newOpen) {
+      window.history.pushState({}, "", "/add-recipe");
+    } else if (window.location.pathname === "/add-recipe") {
+      window.history.pushState({}, "", "/");
+    }
+  };
   const [isLoading, setIsLoading] = useState(false);
   const [ingredientsText, setIngredientsText] = useState("");
   const [parsedIngredients, setParsedIngredients] =
@@ -176,7 +200,7 @@ export default function AddRecipeDialog({ onRecipeAdd }: AddRecipeDialogProps) {
     <Dialog
       open={open}
       onOpenChange={(isOpen) => {
-        setOpen(isOpen);
+        handleOpenChange(isOpen);
         if (!open) {
           // Reset form state when dialog is closed
           setIngredientsText("");

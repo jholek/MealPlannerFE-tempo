@@ -39,18 +39,25 @@ export default function ShareListDialog(props) {
 
     try {
       // Format ingredients for the shared list
-      const formattedItems = ingredients.map((ing) => ({
-        id:
+      const formattedItems = ingredients.map((ing) => {
+        // Ensure each ingredient has a unique ID in the correct format
+        const itemId =
           ing.id ||
-          `item-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-        name: ing.name,
-        amount: ing.amount,
-        unit: ing.unit,
-        category: ing.category,
-        notes: ing.notes,
-        checked: !!checkedItems[ing.id || ""],
-        createdAt: new Date().toISOString(),
-      }));
+          `item-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+
+        return {
+          id: itemId,
+          name: ing.name,
+          amount: ing.amount,
+          unit: ing.unit,
+          category: ing.category,
+          notes: ing.notes,
+          checked: !!checkedItems[ing.id || ""],
+          createdAt: new Date().toISOString(),
+        };
+      });
+
+      console.log("Formatted items for shared list:", formattedItems);
 
       // Create the shared list
       const sharedList = await createSharedList(listName, formattedItems);

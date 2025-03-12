@@ -65,6 +65,8 @@ export async function updateMealPlan(mealPlan: MealPlan): Promise<MealPlan> {
   if (!user) throw new Error("User not authenticated");
 
   try {
+    console.log("Updating meal plan:", mealPlan);
+
     // Check if the meal_plans table exists
     const { error: tableCheckError } = await supabase
       .from("meal_plans")
@@ -93,6 +95,8 @@ export async function updateMealPlan(mealPlan: MealPlan): Promise<MealPlan> {
       );
     }
 
+    console.log("Existing plan from database:", existingPlan);
+
     // Always prioritize the database shared_list_id
     const sharedListId = existingPlan.shared_list_id;
 
@@ -100,9 +104,12 @@ export async function updateMealPlan(mealPlan: MealPlan): Promise<MealPlan> {
       `Updating meal plan ${mealPlan.id} with sharedListId ${sharedListId}`,
     );
 
+    // Make a deep copy of the meal plan to avoid modifying the original
+    const mealPlanCopy = JSON.parse(JSON.stringify(mealPlan));
+
     // Prepare the updated data object with the correct sharedListId
     const updatedData = {
-      ...mealPlan,
+      ...mealPlanCopy,
       sharedListId: sharedListId, // Ensure sharedListId is preserved
     };
 
@@ -112,6 +119,8 @@ export async function updateMealPlan(mealPlan: MealPlan): Promise<MealPlan> {
     delete updatedData.userId;
     delete updatedData.createdAt;
     delete updatedData.updatedAt;
+
+    console.log("Prepared data for update:", updatedData);
 
     // Update the meal plan with both the name and data fields
     const { data, error } = await supabase
@@ -131,6 +140,21 @@ export async function updateMealPlan(mealPlan: MealPlan): Promise<MealPlan> {
       throw new Error(
         `Failed to update meal plan in database: ${error.message}`,
       );
+    }
+
+    console.log("Updated meal plan in database:", data);
+
+    // Verify the update was successful
+    const { data: verifyData, error: verifyError } = await supabase
+      .from("meal_plans")
+      .select("*")
+      .eq("id", mealPlan.id)
+      .single();
+
+    if (verifyError) {
+      console.error("Error verifying meal plan update:", verifyError);
+    } else {
+      console.log("Verified updated meal plan:", verifyData);
     }
 
     // Return the updated meal plan with the correct sharedListId

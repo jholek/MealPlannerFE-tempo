@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
+import { supabase } from "@/lib/supabase";
 import {
   getSharedListByShareId,
   updateSharedList,
@@ -71,6 +72,66 @@ export default function SharedListPage() {
           initialCheckedState[item.id] = item.checked || false;
         });
         setCheckedItems(initialCheckedState);
+
+        console.log(
+          "Setting up Supabase realtime subscription in SharedListPage with filter:",
+          `share_id=eq.${shareId}`,
+        );
+        console.log("List ID for subscription:", list.id);
+
+        // Set up real-time subscription for this shared list
+        const subscription = supabase
+          .channel(`shared_list_${list.id}`)
+          .on(
+            "postgres_changes",
+            {
+              event: "*", // Listen for all events (INSERT, UPDATE, DELETE)
+              schema: "public",
+              table: "shared_lists",
+            },
+            (payload) => {
+              console.log(
+                "REALTIME UPDATE RECEIVED IN SHARED LIST PAGE:",
+                payload,
+              );
+              console.log(
+                "Real-time update received for shared list:",
+                payload,
+              );
+
+              // Always fetch fresh data regardless of payload content
+              supabase
+                .from("shared_lists")
+                .select("*")
+                .eq("share_id", shareId)
+                .single()
+                .then(({ data: refreshedList, error }) => {
+                  if (error) {
+                    console.error("Error refreshing shared list data:", error);
+                    return;
+                  }
+
+                  if (refreshedList && refreshedList.items) {
+                    console.log("Refreshed shared list data:", refreshedList);
+                    setItems(refreshedList.items);
+
+                    // Update checked state for all items
+                    const updatedCheckedState = { ...checkedItems };
+                    refreshedList.items.forEach((item) => {
+                      updatedCheckedState[item.id] = item.checked || false;
+                    });
+                    setCheckedItems(updatedCheckedState);
+                  }
+                });
+            },
+          )
+          .subscribe();
+
+        // Clean up subscription when component unmounts
+        return () => {
+          console.log("Cleaning up real-time subscription");
+          subscription.unsubscribe();
+        };
       } catch (error) {
         console.error("Error fetching shared list:", error);
         toast({
@@ -85,6 +146,7 @@ export default function SharedListPage() {
     };
 
     fetchSharedList();
+    // No need to return cleanup function here as fetchSharedList already returns one
   }, [shareId, toast]);
 
   const handleCheckboxChange = async (id: string) => {
@@ -106,6 +168,35 @@ export default function SharedListPage() {
     // Save to database
     try {
       await updateSharedList(shareId, updatedItems);
+
+      // Verify the update was successful
+      const { data: verifyData, error: verifyError } = await supabase
+        .from("shared_lists")
+        .select("*")
+        .eq("share_id", shareId)
+        .single();
+
+      if (verifyError) {
+        console.error("Error verifying checkbox update:", verifyError);
+      } else if (verifyData) {
+        const updatedItem = verifyData.items.find((item) => item.id === id);
+        console.log("Verified checkbox state in database:", {
+          itemId: id,
+          expectedState: newCheckedItems[id],
+          actualState: updatedItem?.checked,
+        });
+
+        // If the database state doesn't match our expected state, update local state
+        if (updatedItem && updatedItem.checked !== newCheckedItems[id]) {
+          console.warn(
+            "Database checkbox state doesn't match local state, updating local state",
+          );
+          setCheckedItems((prev) => ({
+            ...prev,
+            [id]: updatedItem.checked,
+          }));
+        }
+      }
     } catch (error) {
       console.error("Error updating shared list:", error);
       toast({
@@ -120,7 +211,7 @@ export default function SharedListPage() {
     if (!shareId || !newItem.name.trim()) return;
 
     const newItemObject: SharedListItem = {
-      id: `manual-${Date.now()}`,
+      id: `item-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
       name: newItem.name.trim(),
       amount: parseFloat(newItem.amount) || 1,
       unit: newItem.unit.trim(),
@@ -130,19 +221,58 @@ export default function SharedListPage() {
       createdAt: new Date().toISOString(),
     };
 
+    // Add the new item to the local state
     const updatedItems = [...items, newItemObject];
-    setItems(updatedItems);
 
     // Reset form
     setNewItem({ name: "", amount: "", unit: "", notes: "" });
 
     // Save to database
     try {
-      await updateSharedList(shareId, updatedItems);
+      // Log the items being sent to the database
+      console.log("Sending updated items to database:", updatedItems);
+
+      // First, get the current shared list to ensure we have the latest data
+      const { data: currentList, error: fetchError } = await supabase
+        .from("shared_lists")
+        .select("*")
+        .eq("share_id", shareId)
+        .single();
+
+      if (fetchError) {
+        console.error("Error fetching current shared list:", fetchError);
+        throw new Error(
+          `Failed to fetch current shared list: ${fetchError.message}`,
+        );
+      }
+
+      console.log("Current shared list before update:", currentList);
+
+      // Use the current list's items and add our new item
+      const mergedItems = [...(currentList.items || []), newItemObject];
+
+      // Update the database with the merged items
+      await updateSharedList(shareId, mergedItems);
+
+      // Update local state with the merged items
+      setItems(mergedItems);
+
       toast({
         title: "Item added",
         description: "The item has been added to the list.",
       });
+
+      // Manually refresh the list to ensure we have the latest data
+      const { data: refreshedList, error: refreshError } = await supabase
+        .from("shared_lists")
+        .select("*")
+        .eq("share_id", shareId)
+        .single();
+
+      if (!refreshError && refreshedList) {
+        console.log("Refreshed list after adding item:", refreshedList);
+        setItems(refreshedList.items);
+      }
     } catch (error) {
       console.error("Error adding item to shared list:", error);
       toast({
@@ -252,11 +382,93 @@ export default function SharedListPage() {
     <div className="min-h-screen bg-gray-100 p-4">
       <div className="max-w-4xl mx-auto">
         <Card className="p-6 mb-6">
-          <h1 className="text-2xl font-bold mb-2">{listName}</h1>
-          <p className="text-gray-500 text-sm mb-2">
-            Created:{" "}
-            {new Date(items[0]?.createdAt || Date.now()).toLocaleDateString()}
-          </p>
+          <div className="flex justify-between items-start mb-2">
+            <div>
+              <h1 className="text-2xl font-bold">{listName}</h1>
+              <p className="text-gray-500 text-sm mt-1">
+                Created:{" "}
+                {new Date(
+                  items[0]?.createdAt || Date.now(),
+                ).toLocaleDateString()}
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={async () => {
+                if (!shareId) return;
+                try {
+                  setLoading(true);
+                  const { data: refreshedList, error } = await supabase
+                    .from("shared_lists")
+                    .select("*")
+                    .eq("share_id", shareId)
+                    .single();
+
+                  if (error) {
+                    console.error("Error refreshing shared list data:", error);
+                    toast({
+                      title: "Refresh failed",
+                      description:
+                        "Could not refresh the list. Please try again.",
+                      variant: "destructive",
+                    });
+                    return;
+                  }
+
+                  if (refreshedList && refreshedList.items) {
+                    console.log(
+                      "Manually refreshed shared list data:",
+                      refreshedList,
+                    );
+                    setItems(refreshedList.items);
+
+                    // Update checked state for all items
+                    const updatedCheckedState = { ...checkedItems };
+                    refreshedList.items.forEach((item) => {
+                      updatedCheckedState[item.id] = item.checked || false;
+                    });
+                    setCheckedItems(updatedCheckedState);
+
+                    toast({
+                      title: "List refreshed",
+                      description:
+                        "The shopping list has been refreshed with the latest data.",
+                    });
+                  }
+                } catch (error) {
+                  console.error("Error manually refreshing list:", error);
+                  toast({
+                    title: "Refresh failed",
+                    description:
+                      "Could not refresh the list. Please try again.",
+                    variant: "destructive",
+                  });
+                } finally {
+                  setLoading(false);
+                }
+              }}
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="mr-1"
+              >
+                <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+                <path d="M3 3v5h5"></path>
+                <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"></path>
+                <path d="M16 21h5v-5"></path>
+              </svg>
+              Refresh List
+            </Button>
+          </div>
           <p className="text-gray-600 mb-4">
             This is a shared shopping list. Anyone with this link can view and
             update the list.
